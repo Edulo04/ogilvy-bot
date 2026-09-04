@@ -64,7 +64,7 @@ function addMessage(text, role, reference = "") {
   bubble.className = "bubble";
 
   const paragraph = document.createElement("p");
-  paragraph.textContent = text;
+  paragraph.innerHTML = formatMarkdown(text);
 
   bubble.append(paragraph);
 
