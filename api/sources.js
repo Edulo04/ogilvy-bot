@@ -1,38 +1,85 @@
-import { put, list, del } from "@vercel/blob";
+import { put, list, del, get } from "@vercel/blob";
 
 export default async function handler(req, res) {
   try {
-    // Verificar que Vercel Blob esté conectado
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
       return res.status(500).json({
         error: "Vercel Blob no está configurado correctamente."
       });
     }
 
-    // ==========================================
-    // GET → Listar fuentes
-    // ==========================================
+    // =========================
+    // OBTENER FUENTES
+    // =========================
     if (req.method === "GET") {
       const result = await list({
         token: process.env.BLOB_READ_WRITE_TOKEN,
         prefix: "sources/"
       });
 
-      const sources = result.blobs.map((blob) => ({
-        url: blob.url,
-        pathname: blob.pathname,
-        size: blob.size,
-        uploadedAt: blob.uploadedAt
-      }));
+      const sources = [];
+
+      for (const blob of result.blobs) {
+        try {
+          const fileResult = await get(blob.pathname, {
+            access: "private",
+            token: process.env.BLOB_READ_WRITE_TOKEN,
+            useCache: false
+          });
+
+          let content = "";
+
+          if (fileResult && fileResult.statusCode === 200) {
+            const chunks = [];
+
+            for await (const chunk of fileResult.stream) {
+              chunks.push(Buffer.from(chunk));
+            }
+
+            content = Buffer.concat(chunks).toString("utf-8");
+          }
+
+          // Recuperar el nombre original desde el pathname
+          let name = blob.pathname.replace(/^sources\/\d+-/, "");
+
+          // Convertir los "_" usados para nombres inválidos nuevamente
+          name = name.replace(/_/g, " ");
+
+          sources.push({
+            url: blob.url,
+            pathname: blob.pathname,
+            name,
+            content,
+            size: blob.size,
+            uploadedAt: blob.uploadedAt
+          });
+
+        } catch (error) {
+          console.error(
+            "Error leyendo fuente:",
+            blob.pathname,
+            error
+          );
+
+          sources.push({
+            url: blob.url,
+            pathname: blob.pathname,
+            name: blob.pathname.replace(/^sources\/\d+-/, ""),
+            content: "",
+            size: blob.size,
+            uploadedAt: blob.uploadedAt
+          });
+        }
+      }
 
       return res.status(200).json({
         sources
       });
     }
 
-    // ==========================================
-    // POST → Crear una fuente de texto
-    // ==========================================
+    // =========================
+    // SUBIR FUENTE
+    // =========================
     if (req.method === "POST") {
       const { name, content, type } = req.body || {};
 
@@ -43,7 +90,10 @@ export default async function handler(req, res) {
       }
 
       const safeName = String(name)
-        .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ._-]/g, "_")
+        .replace(
+          /[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ._-]/g,
+          "_"
+        )
         .slice(0, 100);
 
       const sourceType = type || "txt";
@@ -72,9 +122,9 @@ export default async function handler(req, res) {
       });
     }
 
-    // ==========================================
-    // DELETE → Eliminar una fuente
-    // ==========================================
+    // =========================
+    // ELIMINAR FUENTE
+    // =========================
     if (req.method === "DELETE") {
       const { pathname } = req.body || {};
 
@@ -99,7 +149,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Método no permitido
     return res.status(405).json({
       error: "Método no permitido."
     });
