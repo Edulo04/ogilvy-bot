@@ -6,56 +6,501 @@
     <title>Ogilvy Bot | Marketing</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
+
   <body>
     <main class="app-shell">
+
+      <!-- ==========================================
+           BARRA LATERAL
+           ========================================== -->
       <aside class="sidebar">
+
         <div class="brand">
-          <img class="faculty-logo" src="assets/facultad-politecnica.png" alt="Facultad Politécnica - Universidad Nacional de Asunción" />
-          <div><span class="brand-name">Ogilvy Bot</span><small>Facultad Politécnica</small></div>
+          <img
+            class="faculty-logo"
+            src="assets/facultad-politecnica.png"
+            alt="Facultad Politécnica - Universidad Nacional de Asunción"
+          />
+
+          <div>
+            <span class="brand-name">Ogilvy Bot</span>
+            <small>Facultad Politécnica</small>
+          </div>
         </div>
-        <p class="sidebar-copy">Tu compañero para estudiar y comprender los conceptos de Marketing.</p>
-        <button id="clear-chat" class="secondary-button" type="button">Nueva conversación</button>
+
+        <p class="sidebar-copy">
+          Tu compañero para estudiar y comprender los conceptos de Marketing.
+        </p>
+
+        <button
+          id="clear-chat"
+          class="secondary-button"
+          type="button"
+        >
+          Nueva conversación
+        </button>
+
+
+        <!-- ==========================================
+             GUÍA DE ESTUDIO
+             ========================================== -->
+
         <div class="source-card">
+
           <p class="eyebrow">Guía de estudio</p>
-          <p class="source-intro">Temas que Ogilvy Bot puede explicarte</p>
+
+          <p class="source-intro">
+            Temas que Ogilvy Bot puede explicarte
+          </p>
+
           <div class="unit-item">
             <span class="unit-number">VI</span>
-            <div><strong>Orientaciones de marketing</strong><small>Producción, producto, ventas y mercado</small></div>
+
+            <div>
+              <strong>Orientaciones de marketing</strong>
+              <small>
+                Producción, producto, ventas y mercado
+              </small>
+            </div>
           </div>
+
           <div class="unit-item">
             <span class="unit-number">VII</span>
-            <div><strong>Estrategias y resultados</strong><small>Rendimiento, tendencias y marketing holístico</small></div>
+
+            <div>
+              <strong>Estrategias y resultados</strong>
+              <small>
+                Rendimiento, tendencias y marketing holístico
+              </small>
+            </div>
           </div>
+
         </div>
+
+
+        <!-- ==========================================
+             FUENTES DE CONOCIMIENTO
+             ========================================== -->
+
+        <div class="knowledge-card">
+
+          <div class="knowledge-header">
+            <div>
+              <p class="eyebrow">Fuentes de conocimiento</p>
+
+              <p class="knowledge-intro">
+                Documentos que utiliza Ogilvy Bot para responder.
+              </p>
+            </div>
+
+            <span id="source-count" class="source-count">
+              0
+            </span>
+          </div>
+
+
+          <div id="source-list" class="source-list">
+
+            <div class="source-empty">
+              <span class="source-empty-icon">📚</span>
+
+              <p>
+                Todavía no hay fuentes cargadas.
+              </p>
+
+              <small>
+                Agrega material de estudio para mejorar las respuestas.
+              </small>
+            </div>
+
+          </div>
+
+
+          <button
+            id="manage-sources"
+            class="source-button"
+            type="button"
+          >
+            Administrar fuentes
+          </button>
+
+        </div>
+
       </aside>
 
-      <section class="chat-panel" aria-label="Chat de estudio">
+
+      <!-- ==========================================
+           PANEL PRINCIPAL DEL CHAT
+           ========================================== -->
+
+      <section
+        class="chat-panel"
+        aria-label="Chat de estudio"
+      >
+
         <header class="topbar">
+
           <div>
-            <p class="eyebrow">Ogilvy Bot · Marketing</p>
-            <h1>¿Sobre qué tema quieres aprender?</h1>
+            <p class="eyebrow">
+              Ogilvy Bot · Marketing
+            </p>
+
+            <h1>
+              ¿Sobre qué tema quieres aprender?
+            </h1>
           </div>
-          <span class="status"><i></i> Unidades VI y VII</span>
+
+          <span class="status">
+            <i></i>
+            Unidades VI y VII
+          </span>
+
         </header>
 
-        <div id="messages" class="messages" aria-live="polite"></div>
 
-        <section class="suggestions" aria-label="Preguntas sugeridas">
-          <p>Prueba con una pregunta:</p>
+        <!-- MENSAJES -->
+
+        <div
+          id="messages"
+          class="messages"
+          aria-live="polite"
+        ></div>
+
+
+        <!-- ==========================================
+             PREGUNTAS SUGERIDAS
+             ========================================== -->
+
+        <section
+          class="suggestions"
+          aria-label="Preguntas sugeridas"
+        >
+
+          <p>
+            Prueba con una pregunta:
+          </p>
+
           <div class="chips">
-            <button type="button" data-question="¿Cuál es la diferencia entre ventas y marketing?">Ventas vs. marketing</button>
-            <button type="button" data-question="Explica los cuatro componentes del marketing holístico.">Marketing holístico</button>
-            <button type="button" data-question="¿Cómo se mide el rendimiento del marketing?">Rendimiento del marketing</button>
-            <button type="button" data-question="¿Qué es el marketing relacional?">Marketing relacional</button>
+
+            <button
+              type="button"
+              data-question="¿Cuál es la diferencia entre ventas y marketing?"
+            >
+              Ventas vs. marketing
+            </button>
+
+            <button
+              type="button"
+              data-question="Explica los cuatro componentes del marketing holístico."
+            >
+              Marketing holístico
+            </button>
+
+            <button
+              type="button"
+              data-question="¿Cómo se mide el rendimiento del marketing?"
+            >
+              Rendimiento del marketing
+            </button>
+
+            <button
+              type="button"
+              data-question="¿Qué es el marketing relacional?"
+            >
+              Marketing relacional
+            </button>
+
           </div>
+
         </section>
 
-        <form id="chat-form" class="composer">
-          <label class="sr-only" for="question">Escribe tu pregunta</label>
-          <input id="question" autocomplete="off" placeholder="Escribe una pregunta sobre las unidades..." required />
-          <button class="send-button" type="submit" aria-label="Enviar pregunta">Enviar <span>↗</span></button>
+
+        <!-- ==========================================
+             CAJA DE PREGUNTA
+             ========================================== -->
+
+        <form
+          id="chat-form"
+          class="composer"
+        >
+
+          <label
+            class="sr-only"
+            for="question"
+          >
+            Escribe tu pregunta
+          </label>
+
+          <input
+            id="question"
+            autocomplete="off"
+            placeholder="Escribe una pregunta sobre las unidades..."
+            required
+          />
+
+          <button
+            class="send-button"
+            type="submit"
+            aria-label="Enviar pregunta"
+          >
+            Enviar
+            <span>↗</span>
+          </button>
+
         </form>
+
       </section>
+
+    </main>
+
+
+    <!-- ==========================================
+         VENTANA DE ADMINISTRACIÓN DE FUENTES
+         ========================================== -->
+
+    <div
+      id="sources-modal"
+      class="modal hidden"
+      aria-hidden="true"
+    >
+
+      <div
+        class="modal-overlay"
+        id="modal-overlay"
+      ></div>
+
+
+      <section
+        class="modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sources-title"
+      >
+
+        <header class="modal-header">
+
+          <div>
+            <p class="eyebrow">
+              Administración
+            </p>
+
+            <h2 id="sources-title">
+              Fuentes de conocimiento
+            </h2>
+
+            <p>
+              Desde aquí podrás agregar y administrar el material que utilizará
+              Ogilvy Bot para responder.
+            </p>
+          </div>
+
+          <button
+            id="close-sources"
+            class="modal-close"
+            type="button"
+            aria-label="Cerrar"
+          >
+            ×
+          </button>
+
+        </header>
+
+
+        <!-- ==========================================
+             AGREGAR FUENTE
+             ========================================== -->
+
+        <div class="source-manager">
+
+          <div class="manager-section">
+
+            <p class="eyebrow">
+              Agregar fuente
+            </p>
+
+            <h3>
+              Cargar material de estudio
+            </h3>
+
+            <p class="manager-description">
+              Podrás incorporar documentos y páginas web para ampliar el
+              conocimiento del chatbot.
+            </p>
+
+
+            <div class="source-options">
+
+              <button
+                type="button"
+                class="source-option"
+                data-source-type="file"
+              >
+                <span>📄</span>
+
+                <div>
+                  <strong>Documento</strong>
+                  <small>
+                    PDF, TXT o DOCX
+                  </small>
+                </div>
+              </button>
+
+
+              <button
+                type="button"
+                class="source-option"
+                data-source-type="url"
+              >
+                <span>🌐</span>
+
+                <div>
+                  <strong>Página web</strong>
+                  <small>
+                    Agregar una URL
+                  </small>
+                </div>
+              </button>
+
+            </div>
+
+
+            <!-- FORMULARIO DE ARCHIVO -->
+
+            <div
+              id="file-source-form"
+              class="source-form hidden"
+            >
+
+              <label for="source-file">
+                Seleccionar archivo
+              </label>
+
+              <input
+                id="source-file"
+                type="file"
+                accept=".pdf,.txt,.docx"
+              />
+
+              <small>
+                Formatos permitidos: PDF, TXT y DOCX.
+              </small>
+
+              <button
+                id="upload-source"
+                type="button"
+                class="primary-source-button"
+              >
+                Subir fuente
+              </button>
+
+            </div>
+
+
+            <!-- FORMULARIO DE URL -->
+
+            <div
+              id="url-source-form"
+              class="source-form hidden"
+            >
+
+              <label for="source-url">
+                URL de la página
+              </label>
+
+              <input
+                id="source-url"
+                type="url"
+                placeholder="https://ejemplo.com/material"
+              />
+
+              <small>
+                La página será procesada como fuente de conocimiento.
+              </small>
+
+              <button
+                id="add-url-source"
+                type="button"
+                class="primary-source-button"
+              >
+                Agregar página
+              </button>
+
+            </div>
+
+
+            <div
+              id="source-status"
+              class="source-status hidden"
+              role="status"
+            ></div>
+
+          </div>
+
+
+          <!-- ==========================================
+               LISTA DE FUENTES
+               ========================================== -->
+
+          <div class="manager-section">
+
+            <div class="manager-list-header">
+
+              <div>
+                <p class="eyebrow">
+                  Fuentes actuales
+                </p>
+
+                <h3>
+                  Material disponible
+                </h3>
+              </div>
+
+              <span
+                id="manager-source-count"
+                class="source-count"
+              >
+                0
+              </span>
+
+            </div>
+
+
+            <div
+              id="manager-source-list"
+              class="manager-source-list"
+            >
+
+              <div class="source-empty">
+
+                <span class="source-empty-icon">
+                  📚
+                </span>
+
+                <p>
+                  No hay fuentes cargadas.
+                </p>
+
+                <small>
+                  Las fuentes que agregues aparecerán aquí.
+                </small>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+    </div>
+
+
+    <script src="app.js"></script>
+
+  </body>
+</html>
     </main>
     <script src="app.js"></script>
   </body>
