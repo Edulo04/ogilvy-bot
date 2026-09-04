@@ -35,7 +35,7 @@ RESPUESTA:`;
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+      model: "gemini-3.5-flash-lite",
       contents: prompt,
       config: { tools: [{ googleSearch: {} }] }
     });
