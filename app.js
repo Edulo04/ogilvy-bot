@@ -10,29 +10,53 @@ let sources = [];
 // ELEMENTOS DE FUENTES
 // ======================================================
 
-const manageSourcesButton = document.querySelector("#manage-sources");
-const sourcesModal = document.querySelector("#sources-modal");
-const closeSourcesButton = document.querySelector("#close-sources");
-const modalOverlay = document.querySelector("#modal-overlay");
+const manageSourcesButton =
+  document.querySelector("#manage-sources");
 
-const sourceCount = document.querySelector("#source-count");
-const sourceList = document.querySelector("#source-list");
+const sourcesModal =
+  document.querySelector("#sources-modal");
 
-const managerSourceCount = document.querySelector("#manager-source-count");
-const managerSourceList = document.querySelector("#manager-source-list");
+const closeSourcesButton =
+  document.querySelector("#close-sources");
 
-const sourceOptions = document.querySelectorAll(".source-option");
+const modalOverlay =
+  document.querySelector("#modal-overlay");
 
-const fileSourceForm = document.querySelector("#file-source-form");
-const urlSourceForm = document.querySelector("#url-source-form");
+const sourceCount =
+  document.querySelector("#source-count");
 
-const sourceFile = document.querySelector("#source-file");
-const sourceUrl = document.querySelector("#source-url");
+const sourceList =
+  document.querySelector("#source-list");
 
-const uploadSourceButton = document.querySelector("#upload-source");
-const addUrlSourceButton = document.querySelector("#add-url-source");
+const managerSourceCount =
+  document.querySelector("#manager-source-count");
 
-const sourceStatus = document.querySelector("#source-status");
+const managerSourceList =
+  document.querySelector("#manager-source-list");
+
+const sourceOptions =
+  document.querySelectorAll(".source-option");
+
+const fileSourceForm =
+  document.querySelector("#file-source-form");
+
+const urlSourceForm =
+  document.querySelector("#url-source-form");
+
+const sourceFile =
+  document.querySelector("#source-file");
+
+const sourceUrl =
+  document.querySelector("#source-url");
+
+const uploadSourceButton =
+  document.querySelector("#upload-source");
+
+const addUrlSourceButton =
+  document.querySelector("#add-url-source");
+
+const sourceStatus =
+  document.querySelector("#source-status");
 
 
 // ======================================================
@@ -49,7 +73,7 @@ function normalize(text) {
 
 
 // ======================================================
-// CHAT
+// MARKDOWN
 // ======================================================
 
 function formatMarkdown(text) {
@@ -63,42 +87,78 @@ function formatMarkdown(text) {
 }
 
 
-function addMessage(text, role, reference = "") {
-  const row = document.createElement("article");
+// ======================================================
+// MENSAJES
+// ======================================================
 
-  row.className = `message ${role}`;
+function addMessage(
+  text,
+  role,
+  reference = ""
+) {
+  const row =
+    document.createElement("article");
 
-  const avatar = document.createElement("div");
+  row.className =
+    `message ${role}`;
+
+  const avatar =
+    document.createElement("div");
+
   avatar.className = "avatar";
-  avatar.textContent = role === "assistant" ? "O" : "Tú";
 
-  const bubble = document.createElement("div");
+  avatar.textContent =
+    role === "assistant"
+      ? "O"
+      : "Tú";
+
+  const bubble =
+    document.createElement("div");
+
   bubble.className = "bubble";
 
-  const paragraph = document.createElement("p");
-  paragraph.innerHTML = formatMarkdown(text);
+  const paragraph =
+    document.createElement("p");
+
+  paragraph.innerHTML =
+    formatMarkdown(text);
 
   bubble.append(paragraph);
 
   if (reference) {
-    const source = document.createElement("span");
-    source.className = "reference";
-    source.textContent = `Referencia: ${reference}`;
+    const source =
+      document.createElement("span");
+
+    source.className =
+      "reference";
+
+    source.textContent =
+      `Referencia: ${reference}`;
+
     bubble.append(source);
   }
 
-  row.append(avatar, bubble);
+  row.append(
+    avatar,
+    bubble
+  );
+
   messages.append(row);
 
-  messages.scrollTop = messages.scrollHeight;
+  messages.scrollTop =
+    messages.scrollHeight;
 }
 
 
 function addLoadingMessage() {
-  const row = document.createElement("article");
+  const row =
+    document.createElement("article");
 
-  row.className = "message assistant";
-  row.dataset.loading = "true";
+  row.className =
+    "message assistant";
+
+  row.dataset.loading =
+    "true";
 
   row.innerHTML = `
     <div class="avatar">O</div>
@@ -108,7 +168,9 @@ function addLoadingMessage() {
   `;
 
   messages.append(row);
-  messages.scrollTop = messages.scrollHeight;
+
+  messages.scrollTop =
+    messages.scrollHeight;
 
   return row;
 }
@@ -119,15 +181,21 @@ function addLoadingMessage() {
 // ======================================================
 
 function saveHistory() {
-  localStorage.setItem(storageKey, messages.innerHTML);
+  localStorage.setItem(
+    storageKey,
+    messages.innerHTML
+  );
 }
 
 
 function restoreHistory() {
-  const history = localStorage.getItem(storageKey);
+  const history =
+    localStorage.getItem(storageKey);
 
   if (history) {
-    messages.innerHTML = history;
+    messages.innerHTML =
+      history;
+
     return;
   }
 
@@ -146,25 +214,54 @@ function restoreHistory() {
 // ======================================================
 
 async function askAI(question) {
-  const response = await fetch("/api/chat", {
-    method: "POST",
+  const response =
+    await fetch("/api/chat", {
+      method: "POST",
 
-    headers: {
-      "Content-Type": "application/json"
-    },
+      headers: {
+        "Content-Type":
+          "application/json"
+      },
 
-    body: JSON.stringify({
-      question,
-      knowledge: buildKnowledge(),
-      sources
-    })
-  });
+      body: JSON.stringify({
+        question,
+        knowledge:
+          buildKnowledge(),
 
-  const result = await response.json();
+        // Enviamos solamente los datos
+        // necesarios de las fuentes.
+        sources:
+          sources.map((source) => ({
+            name:
+              source.name || "",
+
+            pathname:
+              source.pathname || "",
+
+            type:
+              source.type || "",
+
+            size:
+              source.size || 0
+          }))
+      })
+    });
+
+  let result;
+
+  try {
+    result =
+      await response.json();
+  } catch {
+    throw new Error(
+      "El servidor devolvió una respuesta que no se pudo interpretar."
+    );
+  }
 
   if (!response.ok) {
     throw new Error(
-      result.error || "No se pudo conectar con la IA."
+      result.error ||
+      "No se pudo conectar con la IA."
     );
   }
 
@@ -178,15 +275,27 @@ async function askAI(question) {
 
 function buildKnowledge() {
   if (!sources.length) {
-    return "No hay fuentes de conocimiento cargadas todavía.";
+    return (
+      "No hay fuentes de conocimiento " +
+      "cargadas todavía."
+    );
   }
 
   return sources
     .map((source) => {
 
-      // Las imágenes no se convierten en texto.
-      // Se envían posteriormente a Gemini como contenido visual.
-      if (String(source.type || "").startsWith("image/")) {
+      const type =
+        String(
+          source.type || ""
+        ).toLowerCase();
+
+      // ------------------------------------------------
+      // IMAGEN
+      // ------------------------------------------------
+
+      if (
+        type.startsWith("image/")
+      ) {
         return [
           `Fuente: ${source.name || "Imagen"}`,
           `Tipo: ${source.type || "imagen"}`,
@@ -194,18 +303,40 @@ function buildKnowledge() {
         ].join("\n");
       }
 
-      // PDF y DOCX se envían posteriormente desde el backend.
+      // ------------------------------------------------
+      // PDF
+      // ------------------------------------------------
+
       if (
-        String(source.type || "").toLowerCase() === "application/pdf" ||
-        String(source.type || "").toLowerCase() ===
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        type === "application/pdf" ||
+        type === "pdf"
       ) {
         return [
-          `Fuente: ${source.name || "Documento"}`,
-          `Tipo: ${source.type || "documento"}`,
-          "Esta fuente es un documento adjunto y debe analizarse."
+          `Fuente: ${source.name || "Documento PDF"}`,
+          `Tipo: ${source.type || "PDF"}`,
+          "Esta fuente es un documento PDF y debe analizarse directamente desde el archivo."
         ].join("\n");
       }
+
+      // ------------------------------------------------
+      // DOCX
+      // ------------------------------------------------
+
+      if (
+        type ===
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+        type === "docx"
+      ) {
+        return [
+          `Fuente: ${source.name || "Documento DOCX"}`,
+          `Tipo: ${source.type || "DOCX"}`,
+          "Esta fuente es un documento DOCX y debe analizarse desde su contenido."
+        ].join("\n");
+      }
+
+      // ------------------------------------------------
+      // TXT / URL
+      // ------------------------------------------------
 
       return [
         `Fuente: ${source.name || "Sin nombre"}`,
@@ -214,7 +345,9 @@ function buildKnowledge() {
       ].join("\n");
 
     })
-    .join("\n\n------------------------------\n\n");
+    .join(
+      "\n\n------------------------------\n\n"
+    );
 }
 
 
@@ -223,30 +356,37 @@ function buildKnowledge() {
 // ======================================================
 
 async function ask(question) {
-  const cleanQuestion = question.trim();
+  const cleanQuestion =
+    question.trim();
 
   if (!cleanQuestion) {
     return;
   }
 
-  addMessage(cleanQuestion, "user");
+  addMessage(
+    cleanQuestion,
+    "user"
+  );
 
-  const loading = addLoadingMessage();
+  const loading =
+    addLoadingMessage();
 
   try {
-
-    const result = await askAI(cleanQuestion);
+    const result =
+      await askAI(
+        cleanQuestion
+      );
 
     loading.remove();
 
     addMessage(
       result.answer,
       "assistant",
-      result.reference || "Fuentes de conocimiento"
+      result.reference ||
+        "Fuentes de conocimiento"
     );
 
   } catch (error) {
-
     loading.remove();
 
     addMessage(
@@ -267,26 +407,40 @@ async function ask(question) {
 // ======================================================
 
 async function loadSources() {
-
   try {
+    const response =
+      await fetch(
+        "/api/sources"
+      );
 
-    const response = await fetch("/api/sources");
+    let result;
 
-    const result = await response.json();
-
-    if (!response.ok) {
+    try {
+      result =
+        await response.json();
+    } catch {
       throw new Error(
-        result.error || "No se pudieron cargar las fuentes."
+        "No se pudo interpretar la respuesta del servidor."
       );
     }
 
-    sources = result.sources || [];
+    if (!response.ok) {
+      throw new Error(
+        result.error ||
+        "No se pudieron cargar las fuentes."
+      );
+    }
+
+    sources =
+      result.sources || [];
 
     renderSources();
 
   } catch (error) {
-
-    console.error("Error cargando fuentes:", error);
+    console.error(
+      "Error cargando fuentes:",
+      error
+    );
 
     sources = [];
 
@@ -300,10 +454,11 @@ async function loadSources() {
 // ======================================================
 
 function renderSources() {
+  sourceCount.textContent =
+    sources.length;
 
-  sourceCount.textContent = sources.length;
-  managerSourceCount.textContent = sources.length;
-
+  managerSourceCount.textContent =
+    sources.length;
 
   // ----------------------------------------------------
   // SIDEBAR
@@ -313,10 +468,7 @@ function renderSources() {
 
     sourceList.innerHTML = `
       <div class="source-empty">
-
-        <span class="source-empty-icon">
-          📚
-        </span>
+        <span class="source-empty-icon">📚</span>
 
         <p>
           Todavía no hay fuentes cargadas.
@@ -325,40 +477,47 @@ function renderSources() {
         <small>
           Agrega material de estudio para mejorar las respuestas.
         </small>
-
       </div>
     `;
 
   } else {
 
-    sourceList.innerHTML = sources
-      .slice(0, 4)
-      .map((source) => {
+    sourceList.innerHTML =
+      sources
+        .slice(0, 4)
+        .map((source) => {
 
-        return `
-          <div class="unit-item">
+          return `
+            <div class="unit-item">
 
-            <span class="unit-number">
-              ${getSourceIcon(source.type)}
-            </span>
+              <span class="unit-number">
+                ${getSourceIcon(source.type)}
+              </span>
 
-            <div>
+              <div>
 
-              <strong>
-                ${escapeHtml(source.name || "Fuente")}
-              </strong>
+                <strong>
+                  ${escapeHtml(
+                    source.name ||
+                    "Fuente"
+                  )}
+                </strong>
 
-              <small>
-                ${escapeHtml(getSourceTypeLabel(source.type))}
-              </small>
+                <small>
+                  ${escapeHtml(
+                    getSourceTypeLabel(
+                      source.type
+                    )
+                  )}
+                </small>
+
+              </div>
 
             </div>
+          `;
 
-          </div>
-        `;
-
-      })
-      .join("");
+        })
+        .join("");
   }
 
 
@@ -390,96 +549,69 @@ function renderSources() {
   }
 
 
-  managerSourceList.innerHTML = sources
-    .map((source) => {
+  managerSourceList.innerHTML =
+    sources
+      .map((source) => {
 
-      return `
-        <div class="manager-source-item">
+        return `
+          <div class="manager-source-item">
 
-          <div class="manager-source-info">
+            <div class="manager-source-info">
 
-            <span class="manager-source-name">
-              ${escapeHtml(source.name || "Fuente")}
-            </span>
+              <span class="manager-source-name">
+                ${escapeHtml(
+                  source.name ||
+                  "Fuente"
+                )}
+              </span>
 
-            <span class="manager-source-meta">
-              ${escapeHtml(getSourceTypeLabel(source.type))}
-              ·
-              ${formatDate(source.uploadedAt)}
-            </span>
+              <span class="manager-source-meta">
+                ${escapeHtml(
+                  getSourceTypeLabel(
+                    source.type
+                  )
+                )}
+                ·
+                ${formatDate(
+                  source.uploadedAt
+                )}
+              </span>
+
+            </div>
+
+            <button
+              type="button"
+              class="delete-source-button"
+              data-pathname="${escapeAttribute(
+                source.pathname
+              )}"
+            >
+              Eliminar
+            </button>
 
           </div>
+        `;
 
-          <button
-            type="button"
-            class="delete-source-button"
-            data-pathname="${escapeAttribute(source.pathname)}"
-          >
-            Eliminar
-          </button>
-
-        </div>
-      `;
-
-    })
-    .join("");
+      })
+      .join("");
 
 
   document
-    .querySelectorAll(".delete-source-button")
+    .querySelectorAll(
+      ".delete-source-button"
+    )
     .forEach((button) => {
 
-      button.addEventListener("click", () => {
-        deleteSource(button.dataset.pathname);
-      });
+      button.addEventListener(
+        "click",
+        () => {
+          deleteSource(
+            button.dataset.pathname
+          );
+        }
+      );
 
     });
-}
-
-
-// ======================================================
-// TIPO DE FUENTE
-// ======================================================
-
-function getSourceTypeLabel(type) {
-
-  const value = String(type || "").toLowerCase();
-
-  if (
-    value === "pdf" ||
-    value === "application/pdf"
-  ) {
-    return "PDF";
-  }
-
-  if (
-    value === "docx" ||
-    value ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-  ) {
-    return "DOCX";
-  }
-
-  if (
-    value === "txt" ||
-    value === "text/plain"
-  ) {
-    return "TXT";
-  }
-
-  if (value === "url") {
-    return "Página web";
-  }
-
-  if (value.startsWith("image/")) {
-    return "Imagen";
-  }
-
-  if (value === "image") {
-    return "Imagen";
-  }
-
-  return "Documento";
 }
 
 
@@ -488,40 +620,77 @@ function getSourceTypeLabel(type) {
 // ======================================================
 
 function getSourceIcon(type) {
-
-  const value = String(type || "").toLowerCase();
+  const value =
+    String(
+      type || ""
+    ).toLowerCase();
 
   if (
-    value === "pdf" ||
-    value === "application/pdf"
+    value === "application/pdf" ||
+    value === "pdf"
   ) {
     return "PDF";
   }
 
   if (
-    value === "docx" ||
     value ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    value === "docx"
   ) {
     return "DOC";
   }
 
-  if (value === "url") {
+  if (
+    value === "url"
+  ) {
     return "WEB";
   }
 
   if (
-    value.startsWith("image/") ||
-    value === "image"
+    value.startsWith("image/")
   ) {
     return "IMG";
   }
 
+  return "TXT";
+}
+
+
+// ======================================================
+// TIPO DE FUENTE
+// ======================================================
+
+function getSourceTypeLabel(type) {
+  const value =
+    String(
+      type || ""
+    ).toLowerCase();
+
   if (
-    value === "txt" ||
-    value === "text/plain"
+    value === "application/pdf" ||
+    value === "pdf"
   ) {
-    return "TXT";
+    return "PDF";
+  }
+
+  if (
+    value ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    value === "docx"
+  ) {
+    return "DOCX";
+  }
+
+  if (
+    value === "url"
+  ) {
+    return "URL";
+  }
+
+  if (
+    value.startsWith("image/")
+  ) {
+    return "Imagen";
   }
 
   return "TXT";
@@ -533,14 +702,14 @@ function getSourceIcon(type) {
 // ======================================================
 
 function formatDate(value) {
-
   if (!value) {
     return "Fecha desconocida";
   }
 
   try {
-
-    return new Date(value).toLocaleDateString(
+    return new Date(
+      value
+    ).toLocaleDateString(
       "es-PY",
       {
         day: "2-digit",
@@ -550,7 +719,6 @@ function formatDate(value) {
     );
 
   } catch {
-
     return "Fecha desconocida";
   }
 }
@@ -561,13 +729,29 @@ function formatDate(value) {
 // ======================================================
 
 function escapeHtml(value) {
-
-  return String(value || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  return String(
+    value || ""
+  )
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+    .replace(
+      /</g,
+      "&lt;"
+    )
+    .replace(
+      />/g,
+      "&gt;"
+    )
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+    .replace(
+      /'/g,
+      "&#039;"
+    );
 }
 
 
@@ -581,8 +765,9 @@ function escapeAttribute(value) {
 // ======================================================
 
 function openSourcesModal() {
-
-  sourcesModal.classList.remove("hidden");
+  sourcesModal.classList.remove(
+    "hidden"
+  );
 
   sourcesModal.setAttribute(
     "aria-hidden",
@@ -598,8 +783,9 @@ function openSourcesModal() {
 // ======================================================
 
 function closeSourcesModal() {
-
-  sourcesModal.classList.add("hidden");
+  sourcesModal.classList.add(
+    "hidden"
+  );
 
   sourcesModal.setAttribute(
     "aria-hidden",
@@ -614,18 +800,30 @@ function closeSourcesModal() {
 
 function selectSourceType(type) {
 
-  if (type === "file") {
+  if (
+    type === "file"
+  ) {
 
-    fileSourceForm.classList.remove("hidden");
-    urlSourceForm.classList.add("hidden");
+    fileSourceForm.classList.remove(
+      "hidden"
+    );
 
+    urlSourceForm.classList.add(
+      "hidden"
+    );
   }
 
-  if (type === "url") {
+  if (
+    type === "url"
+  ) {
 
-    urlSourceForm.classList.remove("hidden");
-    fileSourceForm.classList.add("hidden");
+    urlSourceForm.classList.remove(
+      "hidden"
+    );
 
+    fileSourceForm.classList.add(
+      "hidden"
+    );
   }
 }
 
@@ -635,72 +833,121 @@ function selectSourceType(type) {
 // ======================================================
 
 function showStatus(message) {
+  sourceStatus.textContent =
+    message;
 
-  sourceStatus.textContent = message;
-  sourceStatus.classList.remove("hidden");
-
+  sourceStatus.classList.remove(
+    "hidden"
+  );
 }
 
 
 function hideStatus() {
+  sourceStatus.textContent =
+    "";
 
-  sourceStatus.textContent = "";
-  sourceStatus.classList.add("hidden");
-
+  sourceStatus.classList.add(
+    "hidden"
+  );
 }
 
 
 // ======================================================
-// LEER ARCHIVO COMO TEXTO
+// OBTENER URL FIRMADA
 // ======================================================
 
-async function readTextFile(file) {
+async function getUploadUrl(file) {
 
-  const content = await file.text();
+  const response =
+    await fetch(
+      "/api/upload-url",
+      {
+        method: "POST",
 
-  if (!content.trim()) {
-    throw new Error("El archivo está vacío.");
+        headers: {
+          "Content-Type":
+            "application/json"
+        },
+
+        body: JSON.stringify({
+          name: file.name,
+          type:
+            file.type ||
+            "application/octet-stream"
+        })
+      }
+    );
+
+  let result;
+
+  try {
+    result =
+      await response.json();
+  } catch {
+    throw new Error(
+      "El servidor no devolvió una respuesta válida al preparar la subida."
+    );
   }
 
-  return content;
+  if (!response.ok) {
+    throw new Error(
+      result.error ||
+      "No se pudo preparar la subida."
+    );
+  }
+
+  if (!result.uploadUrl) {
+    throw new Error(
+      "El servidor no devolvió una URL de subida."
+    );
+  }
+
+  return result;
 }
 
 
 // ======================================================
-// LEER ARCHIVO BINARIO COMO DATA URL
+// SUBIR ARCHIVO DIRECTAMENTE A BLOB
 // ======================================================
 
-function readBinaryFile(file) {
+async function uploadFileDirectly(
+  file,
+  uploadUrl
+) {
 
-  return new Promise((resolve, reject) => {
+  const response =
+    await fetch(
+      uploadUrl,
+      {
+        method: "PUT",
 
-    const reader = new FileReader();
+        headers: {
+          "Content-Type":
+            file.type ||
+            "application/octet-stream"
+        },
 
-    reader.onload = () => {
-
-      if (!reader.result) {
-
-        reject(
-          new Error("No se pudo leer el archivo.")
-        );
-
-        return;
+        body: file
       }
+    );
 
-      resolve(reader.result);
-    };
+  if (!response.ok) {
 
-    reader.onerror = () => {
+    let details = "";
 
-      reject(
-        new Error("No se pudo leer el archivo.")
-      );
+    try {
+      details =
+        await response.text();
+    } catch {
+      details = "";
+    }
 
-    };
-
-    reader.readAsDataURL(file);
-
-  });
+    throw new Error(
+      details
+        ? `Vercel Blob rechazó la subida: ${details}`
+        : "Vercel Blob rechazó la subida."
+    );
+  }
 }
 
 
@@ -710,7 +957,8 @@ function readBinaryFile(file) {
 
 async function uploadSource() {
 
-  const file = sourceFile.files[0];
+  const file =
+    sourceFile.files[0];
 
   if (!file) {
 
@@ -722,18 +970,12 @@ async function uploadSource() {
   }
 
 
-  const extension = file.name
-    .split(".")
-    .pop()
-    .toLowerCase();
+  const extension =
+    file.name
+      .split(".")
+      .pop()
+      .toLowerCase();
 
-
-  const isImage = file.type.startsWith("image/");
-
-
-  // ----------------------------------------------------
-  // TIPOS PERMITIDOS
-  // ----------------------------------------------------
 
   const allowedExtensions = [
     "txt",
@@ -742,13 +984,23 @@ async function uploadSource() {
   ];
 
 
+  const isImage =
+    String(
+      file.type || ""
+    ).startsWith(
+      "image/"
+    );
+
+
   if (
-    !isImage &&
-    !allowedExtensions.includes(extension)
+    !allowedExtensions.includes(
+      extension
+    ) &&
+    !isImage
   ) {
 
     showStatus(
-      "Formato no permitido. Puedes cargar TXT, PDF, DOCX o imágenes."
+      "Formato no permitido. Utiliza TXT, PDF, DOCX o una imagen."
     );
 
     return;
@@ -757,37 +1009,35 @@ async function uploadSource() {
 
   try {
 
-    uploadSourceButton.disabled = true;
+    uploadSourceButton.disabled =
+      true;
 
 
     // ==================================================
-    // IMAGEN, PDF Y DOCX
+    // TXT
     // ==================================================
 
     if (
-      isImage ||
-      extension === "pdf" ||
-      extension === "docx"
+      extension === "txt"
     ) {
 
-      let message = "Leyendo el archivo...";
+      showStatus(
+        "Leyendo el archivo..."
+      );
 
-      if (isImage) {
-        message = "Leyendo la imagen...";
+      const content =
+        await file.text();
+
+      if (
+        !content.trim()
+      ) {
+
+        showStatus(
+          "El archivo está vacío."
+        );
+
+        return;
       }
-
-      if (extension === "pdf") {
-        message = "Leyendo el PDF...";
-      }
-
-      if (extension === "docx") {
-        message = "Leyendo el documento DOCX...";
-      }
-
-      showStatus(message);
-
-
-      const fileData = await readBinaryFile(file);
 
 
       showStatus(
@@ -795,151 +1045,109 @@ async function uploadSource() {
       );
 
 
-      let contentType = file.type;
+      const response =
+        await fetch(
+          "/api/sources",
+          {
+            method: "POST",
 
-      if (!contentType) {
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
 
-        if (extension === "pdf") {
-          contentType = "application/pdf";
-        }
+            body: JSON.stringify({
+              name:
+                file.name,
 
-        if (extension === "docx") {
-          contentType =
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-        }
+              content,
+
+              type:
+                "text/plain"
+            })
+          }
+        );
+
+
+      let result;
+
+      try {
+        result =
+          await response.json();
+      } catch {
+        throw new Error(
+          "El servidor no devolvió una respuesta válida."
+        );
       }
-
-
-      const response = await fetch(
-        "/api/sources",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json"
-          },
-
-          body: JSON.stringify({
-            name: file.name,
-            content: fileData,
-            type: contentType
-          })
-        }
-      );
-
-
-      const result = await response.json();
 
 
       if (!response.ok) {
-
         throw new Error(
           result.error ||
-          "No se pudo guardar el archivo."
+          "No se pudo guardar la fuente."
         );
       }
 
 
-      if (isImage) {
+      showStatus(
+        "Fuente guardada correctamente."
+      );
 
-        showStatus(
-          "Imagen guardada correctamente."
+    } else {
+
+      // ==================================================
+      // PDF / DOCX / IMAGEN
+      // SUBIDA DIRECTA A VERCEL BLOB
+      // ==================================================
+
+      showStatus(
+        "Preparando la subida..."
+      );
+
+
+      const uploadInfo =
+        await getUploadUrl(
+          file
         );
 
-      } else if (extension === "pdf") {
 
-        showStatus(
-          "PDF guardado correctamente."
-        );
-
-      } else {
-
-        showStatus(
-          "DOCX guardado correctamente."
-        );
-
-      }
+      showStatus(
+        "Subiendo el archivo directamente a Vercel Blob..."
+      );
 
 
-      sourceFile.value = "";
-
-      await loadSources();
-
-
-      setTimeout(() => {
-        hideStatus();
-      }, 1500);
+      await uploadFileDirectly(
+        file,
+        uploadInfo.uploadUrl
+      );
 
 
-      return;
-    }
-
-
-    // ==================================================
-    // TXT
-    // ==================================================
-
-    showStatus(
-      "Leyendo el archivo..."
-    );
-
-
-    const content = await readTextFile(file);
-
-
-    showStatus(
-      "Guardando la fuente..."
-    );
-
-
-    const response = await fetch(
-      "/api/sources",
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json"
-        },
-
-        body: JSON.stringify({
-          name: file.name,
-          content,
-          type: "text/plain"
-        })
-      }
-    );
-
-
-    const result = await response.json();
-
-
-    if (!response.ok) {
-
-      throw new Error(
-        result.error ||
-        "No se pudo guardar la fuente."
+      showStatus(
+        "Archivo subido correctamente. Actualizando fuentes..."
       );
     }
 
 
-    showStatus(
-      "Fuente guardada correctamente."
-    );
-
-
-    sourceFile.value = "";
+    sourceFile.value =
+      "";
 
     await loadSources();
 
 
-    setTimeout(() => {
-      hideStatus();
-    }, 1500);
+    setTimeout(
+      () => {
+        hideStatus();
+      },
+      1500
+    );
 
 
   } catch (error) {
 
-    console.error(error);
+    console.error(
+      "Error subiendo fuente:",
+      error
+    );
 
     showStatus(
       error.message ||
@@ -948,8 +1156,8 @@ async function uploadSource() {
 
   } finally {
 
-    uploadSourceButton.disabled = false;
-
+    uploadSourceButton.disabled =
+      false;
   }
 }
 
@@ -960,7 +1168,8 @@ async function uploadSource() {
 
 async function addUrlSource() {
 
-  const url = sourceUrl.value.trim();
+  const url =
+    sourceUrl.value.trim();
 
   if (!url) {
 
@@ -974,32 +1183,48 @@ async function addUrlSource() {
 
   try {
 
-    addUrlSourceButton.disabled = true;
+    addUrlSourceButton.disabled =
+      true;
+
 
     showStatus(
       "Guardando la página..."
     );
 
 
-    const response = await fetch(
-      "/api/sources",
-      {
-        method: "POST",
+    const response =
+      await fetch(
+        "/api/sources",
+        {
+          method: "POST",
 
-        headers: {
-          "Content-Type": "application/json"
-        },
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
 
-        body: JSON.stringify({
-          name: url,
-          content: `Fuente web: ${url}`,
-          type: "url"
-        })
-      }
-    );
+          body: JSON.stringify({
+            name: url,
+
+            content:
+              `Fuente web: ${url}`,
+
+            type: "url"
+          })
+        }
+      );
 
 
-    const result = await response.json();
+    let result;
+
+    try {
+      result =
+        await response.json();
+    } catch {
+      throw new Error(
+        "El servidor no devolvió una respuesta válida."
+      );
+    }
 
 
     if (!response.ok) {
@@ -1011,8 +1236,8 @@ async function addUrlSource() {
     }
 
 
-    sourceUrl.value = "";
-
+    sourceUrl.value =
+      "";
 
     showStatus(
       "URL guardada correctamente."
@@ -1022,14 +1247,19 @@ async function addUrlSource() {
     await loadSources();
 
 
-    setTimeout(() => {
-      hideStatus();
-    }, 1500);
+    setTimeout(
+      () => {
+        hideStatus();
+      },
+      1500
+    );
 
 
   } catch (error) {
 
-    console.error(error);
+    console.error(
+      error
+    );
 
     showStatus(
       error.message ||
@@ -1038,8 +1268,8 @@ async function addUrlSource() {
 
   } finally {
 
-    addUrlSourceButton.disabled = false;
-
+    addUrlSourceButton.disabled =
+      false;
   }
 }
 
@@ -1048,11 +1278,14 @@ async function addUrlSource() {
 // ELIMINAR FUENTE
 // ======================================================
 
-async function deleteSource(pathname) {
+async function deleteSource(
+  pathname
+) {
 
-  const confirmed = confirm(
-    "¿Seguro que quieres eliminar esta fuente?"
-  );
+  const confirmed =
+    confirm(
+      "¿Seguro que quieres eliminar esta fuente?"
+    );
 
   if (!confirmed) {
     return;
@@ -1066,23 +1299,34 @@ async function deleteSource(pathname) {
     );
 
 
-    const response = await fetch(
-      "/api/sources",
-      {
-        method: "DELETE",
+    const response =
+      await fetch(
+        "/api/sources",
+        {
+          method: "DELETE",
 
-        headers: {
-          "Content-Type": "application/json"
-        },
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
 
-        body: JSON.stringify({
-          pathname
-        })
-      }
-    );
+          body: JSON.stringify({
+            pathname
+          })
+        }
+      );
 
 
-    const result = await response.json();
+    let result;
+
+    try {
+      result =
+        await response.json();
+    } catch {
+      throw new Error(
+        "El servidor no devolvió una respuesta válida."
+      );
+    }
 
 
     if (!response.ok) {
@@ -1102,20 +1346,24 @@ async function deleteSource(pathname) {
     await loadSources();
 
 
-    setTimeout(() => {
-      hideStatus();
-    }, 1500);
+    setTimeout(
+      () => {
+        hideStatus();
+      },
+      1500
+    );
 
 
   } catch (error) {
 
-    console.error(error);
+    console.error(
+      error
+    );
 
     showStatus(
       error.message ||
       "No se pudo eliminar la fuente."
     );
-
   }
 }
 
@@ -1124,69 +1372,76 @@ async function deleteSource(pathname) {
 // EVENTOS DEL ADMINISTRADOR
 // ======================================================
 
-if (manageSourcesButton) {
+if (
+  manageSourcesButton
+) {
 
   manageSourcesButton.addEventListener(
     "click",
     openSourcesModal
   );
-
 }
 
 
-if (closeSourcesButton) {
+if (
+  closeSourcesButton
+) {
 
   closeSourcesButton.addEventListener(
     "click",
     closeSourcesModal
   );
-
 }
 
 
-if (modalOverlay) {
+if (
+  modalOverlay
+) {
 
   modalOverlay.addEventListener(
     "click",
     closeSourcesModal
   );
-
 }
 
 
-sourceOptions.forEach((button) => {
+sourceOptions.forEach(
+  (button) => {
 
-  button.addEventListener(
-    "click",
-    () => {
+    button.addEventListener(
+      "click",
+      () => {
 
-      selectSourceType(
-        button.dataset.sourceType
-      );
+        selectSourceType(
+          button.dataset.sourceType
+        );
 
-    }
-  );
+      }
+    );
 
-});
+  }
+);
 
 
-if (uploadSourceButton) {
+if (
+  uploadSourceButton
+) {
 
   uploadSourceButton.addEventListener(
     "click",
     uploadSource
   );
-
 }
 
 
-if (addUrlSourceButton) {
+if (
+  addUrlSourceButton
+) {
 
   addUrlSourceButton.addEventListener(
     "click",
     addUrlSource
   );
-
 }
 
 
@@ -1200,11 +1455,12 @@ document.addEventListener(
 
     if (
       event.key === "Escape" &&
-      !sourcesModal.classList.contains("hidden")
+      !sourcesModal.classList.contains(
+        "hidden"
+      )
     ) {
 
       closeSourcesModal();
-
     }
 
   }
@@ -1221,37 +1477,52 @@ form.addEventListener(
 
     event.preventDefault();
 
-    const question = input.value;
+    const question =
+      input.value;
 
-    input.value = "";
+    input.value =
+      "";
 
-    await ask(question);
+    await ask(
+      question
+    );
 
     input.focus();
-
   }
 );
 
 
 document
-  .querySelectorAll("[data-question]")
-  .forEach((button) => {
+  .querySelectorAll(
+    "[data-question]"
+  )
+  .forEach(
+    (button) => {
 
-    button.addEventListener(
-      "click",
-      () => {
+      button.addEventListener(
+        "click",
+        () => {
 
-        ask(button.dataset.question);
+          ask(
+            button.dataset.question
+          );
 
-      }
-    );
+        }
+      );
 
-  });
+    }
+  );
 
 
-document
-  .querySelector("#clear-chat")
-  .addEventListener(
+const clearChatButton =
+  document.querySelector(
+    "#clear-chat"
+  );
+
+
+if (clearChatButton) {
+
+  clearChatButton.addEventListener(
     "click",
     () => {
 
@@ -1259,12 +1530,13 @@ document
         storageKey
       );
 
-      messages.innerHTML = "";
+      messages.innerHTML =
+        "";
 
       restoreHistory();
-
     }
   );
+}
 
 
 // ======================================================
