@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@google/genai": "^1.0.0",
-    "@vercel/blob": "^2.3.0"
+    "@vercel/blob": "^2.3.0",
+    "mammoth": "^1.10.0"
   }
 }
