@@ -105,7 +105,8 @@ function addMessage(
   const avatar =
     document.createElement("div");
 
-  avatar.className = "avatar";
+  avatar.className =
+    "avatar";
 
   avatar.textContent =
     role === "assistant"
@@ -115,7 +116,8 @@ function addMessage(
   const bubble =
     document.createElement("div");
 
-  bubble.className = "bubble";
+  bubble.className =
+    "bubble";
 
   const paragraph =
     document.createElement("p");
@@ -162,6 +164,7 @@ function addLoadingMessage() {
 
   row.innerHTML = `
     <div class="avatar">O</div>
+
     <div class="bubble">
       <p>Estoy preparando una respuesta...</p>
     </div>
@@ -200,7 +203,17 @@ function restoreHistory() {
   }
 
   addMessage(
-    "¡Hola! Soy Ogilvy Bot. Puedo ayudarte a comprender Marketing utilizando el material de estudio cargado como fuente de conocimiento.",
+    `¡Hola! Soy Ogilvy Bot. 👋
+
+Puedo ayudarte a estudiar los siguientes temas de Marketing:
+
+1. Orientación a la producción, al producto, a las ventas y al mercado.
+2. Diferencia entre ventas y marketing, y enfoques reactivo y proactivo.
+3. Rendimiento del marketing y responsabilidad financiera.
+4. Marketing social y marketing relacional.
+5. Marketing integrado, interno, holístico y tendencias modernas.
+
+Podés preguntarme sobre cualquiera de estos temas y te lo explicaré de forma clara, sencilla y basándome en el material de estudio cargado.`,
     "assistant",
     "Ogilvy Bot"
   );
@@ -215,43 +228,48 @@ function restoreHistory() {
 
 async function askAI(question) {
   const response =
-    await fetch("/api/chat", {
-      method: "POST",
+    await fetch(
+      "/api/chat",
+      {
+        method: "POST",
 
-      headers: {
-        "Content-Type":
-          "application/json"
-      },
+        headers: {
+          "Content-Type":
+            "application/json"
+        },
 
-      body: JSON.stringify({
-        question,
-        knowledge:
-          buildKnowledge(),
+        body: JSON.stringify({
+          question,
 
-        // Enviamos solamente los datos
-        // necesarios de las fuentes.
-        sources:
-          sources.map((source) => ({
-            name:
-              source.name || "",
+          knowledge:
+            buildKnowledge(),
 
-            pathname:
-              source.pathname || "",
+          sources:
+            sources.map(
+              (source) => ({
+                name:
+                  source.name || "",
 
-            type:
-              source.type || "",
+                pathname:
+                  source.pathname || "",
 
-            size:
-              source.size || 0
-          }))
-      })
-    });
+                type:
+                  source.type || "",
+
+                size:
+                  source.size || 0
+              })
+            )
+        })
+      }
+    );
 
   let result;
 
   try {
     result =
       await response.json();
+
   } catch {
     throw new Error(
       "El servidor devolvió una respuesta que no se pudo interpretar."
@@ -282,69 +300,103 @@ function buildKnowledge() {
   }
 
   return sources
-    .map((source) => {
+    .map(
+      (source) => {
 
-      const type =
-        String(
-          source.type || ""
-        ).toLowerCase();
+        const type =
+          String(
+            source.type || ""
+          ).toLowerCase();
 
-      // ------------------------------------------------
-      // IMAGEN
-      // ------------------------------------------------
 
-      if (
-        type.startsWith("image/")
-      ) {
+        // ------------------------------------------------
+        // IMAGEN
+        // ------------------------------------------------
+
+        if (
+          type.startsWith("image/")
+        ) {
+          return [
+            `Fuente: ${source.name || "Imagen"}`,
+
+            `Tipo: ${
+              source.type || "imagen"
+            }`,
+
+            "Esta fuente es una imagen y debe analizarse visualmente."
+          ].join("\n");
+        }
+
+
+        // ------------------------------------------------
+        // PDF
+        // ------------------------------------------------
+
+        if (
+          type === "application/pdf" ||
+          type === "pdf"
+        ) {
+          return [
+            `Fuente: ${
+              source.name ||
+              "Documento PDF"
+            }`,
+
+            `Tipo: ${
+              source.type ||
+              "PDF"
+            }`,
+
+            "Esta fuente es un documento PDF y debe analizarse directamente desde el archivo."
+          ].join("\n");
+        }
+
+
+        // ------------------------------------------------
+        // DOCX
+        // ------------------------------------------------
+
+        if (
+          type ===
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+          type === "docx"
+        ) {
+          return [
+            `Fuente: ${
+              source.name ||
+              "Documento DOCX"
+            }`,
+
+            `Tipo: ${
+              source.type ||
+              "DOCX"
+            }`,
+
+            "Esta fuente es un documento DOCX y debe analizarse desde su contenido."
+          ].join("\n");
+        }
+
+
+        // ------------------------------------------------
+        // TXT / URL
+        // ------------------------------------------------
+
         return [
-          `Fuente: ${source.name || "Imagen"}`,
-          `Tipo: ${source.type || "imagen"}`,
-          "Esta fuente es una imagen y debe analizarse visualmente."
+          `Fuente: ${
+            source.name ||
+            "Sin nombre"
+          }`,
+
+          `Tipo: ${
+            source.type ||
+            "documento"
+          }`,
+
+          source.content || ""
         ].join("\n");
+
       }
-
-      // ------------------------------------------------
-      // PDF
-      // ------------------------------------------------
-
-      if (
-        type === "application/pdf" ||
-        type === "pdf"
-      ) {
-        return [
-          `Fuente: ${source.name || "Documento PDF"}`,
-          `Tipo: ${source.type || "PDF"}`,
-          "Esta fuente es un documento PDF y debe analizarse directamente desde el archivo."
-        ].join("\n");
-      }
-
-      // ------------------------------------------------
-      // DOCX
-      // ------------------------------------------------
-
-      if (
-        type ===
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-        type === "docx"
-      ) {
-        return [
-          `Fuente: ${source.name || "Documento DOCX"}`,
-          `Tipo: ${source.type || "DOCX"}`,
-          "Esta fuente es un documento DOCX y debe analizarse desde su contenido."
-        ].join("\n");
-      }
-
-      // ------------------------------------------------
-      // TXT / URL
-      // ------------------------------------------------
-
-      return [
-        `Fuente: ${source.name || "Sin nombre"}`,
-        `Tipo: ${source.type || "documento"}`,
-        source.content || ""
-      ].join("\n");
-
-    })
+    )
     .join(
       "\n\n------------------------------\n\n"
     );
@@ -372,6 +424,7 @@ async function ask(question) {
     addLoadingMessage();
 
   try {
+
     const result =
       await askAI(
         cleanQuestion
@@ -387,6 +440,7 @@ async function ask(question) {
     );
 
   } catch (error) {
+
     loading.remove();
 
     addMessage(
@@ -408,6 +462,7 @@ async function ask(question) {
 
 async function loadSources() {
   try {
+
     const response =
       await fetch(
         "/api/sources"
@@ -416,15 +471,19 @@ async function loadSources() {
     let result;
 
     try {
+
       result =
         await response.json();
+
     } catch {
+
       throw new Error(
         "No se pudo interpretar la respuesta del servidor."
       );
     }
 
     if (!response.ok) {
+
       throw new Error(
         result.error ||
         "No se pudieron cargar las fuentes."
@@ -437,6 +496,7 @@ async function loadSources() {
     renderSources();
 
   } catch (error) {
+
     console.error(
       "Error cargando fuentes:",
       error
@@ -454,11 +514,13 @@ async function loadSources() {
 // ======================================================
 
 function renderSources() {
+
   sourceCount.textContent =
     sources.length;
 
   managerSourceCount.textContent =
     sources.length;
+
 
   // ----------------------------------------------------
   // SIDEBAR
@@ -468,7 +530,10 @@ function renderSources() {
 
     sourceList.innerHTML = `
       <div class="source-empty">
-        <span class="source-empty-icon">📚</span>
+
+        <span class="source-empty-icon">
+          📚
+        </span>
 
         <p>
           Todavía no hay fuentes cargadas.
@@ -477,6 +542,7 @@ function renderSources() {
         <small>
           Agrega material de estudio para mejorar las respuestas.
         </small>
+
       </div>
     `;
 
@@ -485,38 +551,41 @@ function renderSources() {
     sourceList.innerHTML =
       sources
         .slice(0, 4)
-        .map((source) => {
+        .map(
+          (source) => {
 
-          return `
-            <div class="unit-item">
+            return `
+              <div class="unit-item">
 
-              <span class="unit-number">
-                ${getSourceIcon(source.type)}
-              </span>
-
-              <div>
-
-                <strong>
-                  ${escapeHtml(
-                    source.name ||
-                    "Fuente"
+                <span class="unit-number">
+                  ${getSourceIcon(
+                    source.type
                   )}
-                </strong>
+                </span>
 
-                <small>
-                  ${escapeHtml(
-                    getSourceTypeLabel(
-                      source.type
-                    )
-                  )}
-                </small>
+                <div>
+
+                  <strong>
+                    ${escapeHtml(
+                      source.name ||
+                      "Fuente"
+                    )}
+                  </strong>
+
+                  <small>
+                    ${escapeHtml(
+                      getSourceTypeLabel(
+                        source.type
+                      )
+                    )}
+                  </small>
+
+                </div>
 
               </div>
-
-            </div>
-          `;
-
-        })
+            `;
+          }
+        )
         .join("");
   }
 
@@ -551,48 +620,51 @@ function renderSources() {
 
   managerSourceList.innerHTML =
     sources
-      .map((source) => {
+      .map(
+        (source) => {
 
-        return `
-          <div class="manager-source-item">
+          return `
+            <div class="manager-source-item">
 
-            <div class="manager-source-info">
+              <div class="manager-source-info">
 
-              <span class="manager-source-name">
-                ${escapeHtml(
-                  source.name ||
-                  "Fuente"
-                )}
-              </span>
+                <span class="manager-source-name">
+                  ${escapeHtml(
+                    source.name ||
+                    "Fuente"
+                  )}
+                </span>
 
-              <span class="manager-source-meta">
-                ${escapeHtml(
-                  getSourceTypeLabel(
-                    source.type
-                  )
-                )}
-                ·
-                ${formatDate(
-                  source.uploadedAt
-                )}
-              </span>
+                <span class="manager-source-meta">
+                  ${escapeHtml(
+                    getSourceTypeLabel(
+                      source.type
+                    )
+                  )}
+
+                  ·
+
+                  ${formatDate(
+                    source.uploadedAt
+                  )}
+                </span>
+
+              </div>
+
+              <button
+                type="button"
+                class="delete-source-button"
+                data-pathname="${escapeAttribute(
+                  source.pathname
+                )}"
+              >
+                Eliminar
+              </button>
 
             </div>
-
-            <button
-              type="button"
-              class="delete-source-button"
-              data-pathname="${escapeAttribute(
-                source.pathname
-              )}"
-            >
-              Eliminar
-            </button>
-
-          </div>
-        `;
-
-      })
+          `;
+        }
+      )
       .join("");
 
 
@@ -600,18 +672,22 @@ function renderSources() {
     .querySelectorAll(
       ".delete-source-button"
     )
-    .forEach((button) => {
+    .forEach(
+      (button) => {
 
-      button.addEventListener(
-        "click",
-        () => {
-          deleteSource(
-            button.dataset.pathname
-          );
-        }
-      );
+        button.addEventListener(
+          "click",
+          () => {
 
-    });
+            deleteSource(
+              button.dataset.pathname
+            );
+
+          }
+        );
+
+      }
+    );
 }
 
 
@@ -620,10 +696,12 @@ function renderSources() {
 // ======================================================
 
 function getSourceIcon(type) {
+
   const value =
     String(
       type || ""
     ).toLowerCase();
+
 
   if (
     value === "application/pdf" ||
@@ -631,6 +709,7 @@ function getSourceIcon(type) {
   ) {
     return "PDF";
   }
+
 
   if (
     value ===
@@ -640,17 +719,20 @@ function getSourceIcon(type) {
     return "DOC";
   }
 
+
   if (
     value === "url"
   ) {
     return "WEB";
   }
 
+
   if (
     value.startsWith("image/")
   ) {
     return "IMG";
   }
+
 
   return "TXT";
 }
@@ -661,10 +743,12 @@ function getSourceIcon(type) {
 // ======================================================
 
 function getSourceTypeLabel(type) {
+
   const value =
     String(
       type || ""
     ).toLowerCase();
+
 
   if (
     value === "application/pdf" ||
@@ -672,6 +756,7 @@ function getSourceTypeLabel(type) {
   ) {
     return "PDF";
   }
+
 
   if (
     value ===
@@ -681,17 +766,20 @@ function getSourceTypeLabel(type) {
     return "DOCX";
   }
 
+
   if (
     value === "url"
   ) {
     return "URL";
   }
 
+
   if (
     value.startsWith("image/")
   ) {
     return "Imagen";
   }
+
 
   return "TXT";
 }
@@ -702,11 +790,13 @@ function getSourceTypeLabel(type) {
 // ======================================================
 
 function formatDate(value) {
+
   if (!value) {
     return "Fecha desconocida";
   }
 
   try {
+
     return new Date(
       value
     ).toLocaleDateString(
@@ -719,6 +809,7 @@ function formatDate(value) {
     );
 
   } catch {
+
     return "Fecha desconocida";
   }
 }
@@ -729,6 +820,7 @@ function formatDate(value) {
 // ======================================================
 
 function escapeHtml(value) {
+
   return String(
     value || ""
   )
@@ -765,6 +857,7 @@ function escapeAttribute(value) {
 // ======================================================
 
 function openSourcesModal() {
+
   sourcesModal.classList.remove(
     "hidden"
   );
@@ -783,6 +876,7 @@ function openSourcesModal() {
 // ======================================================
 
 function closeSourcesModal() {
+
   sourcesModal.classList.add(
     "hidden"
   );
@@ -813,6 +907,7 @@ function selectSourceType(type) {
     );
   }
 
+
   if (
     type === "url"
   ) {
@@ -833,6 +928,7 @@ function selectSourceType(type) {
 // ======================================================
 
 function showStatus(message) {
+
   sourceStatus.textContent =
     message;
 
@@ -843,6 +939,7 @@ function showStatus(message) {
 
 
 function hideStatus() {
+
   sourceStatus.textContent =
     "";
 
@@ -870,7 +967,9 @@ async function getUploadUrl(file) {
         },
 
         body: JSON.stringify({
-          name: file.name,
+          name:
+            file.name,
+
           type:
             file.type ||
             "application/octet-stream"
@@ -881,26 +980,34 @@ async function getUploadUrl(file) {
   let result;
 
   try {
+
     result =
       await response.json();
+
   } catch {
+
     throw new Error(
       "El servidor no devolvió una respuesta válida al preparar la subida."
     );
   }
 
+
   if (!response.ok) {
+
     throw new Error(
       result.error ||
       "No se pudo preparar la subida."
     );
   }
 
+
   if (!result.uploadUrl) {
+
     throw new Error(
       "El servidor no devolvió una URL de subida."
     );
   }
+
 
   return result;
 }
@@ -931,16 +1038,21 @@ async function uploadFileDirectly(
       }
     );
 
+
   if (!response.ok) {
 
     let details = "";
 
     try {
+
       details =
         await response.text();
+
     } catch {
+
       details = "";
     }
+
 
     throw new Error(
       details
@@ -959,6 +1071,7 @@ async function uploadSource() {
 
   const file =
     sourceFile.files[0];
+
 
   if (!file) {
 
@@ -1025,8 +1138,10 @@ async function uploadSource() {
         "Leyendo el archivo..."
       );
 
+
       const content =
         await file.text();
+
 
       if (
         !content.trim()
@@ -1072,9 +1187,12 @@ async function uploadSource() {
       let result;
 
       try {
+
         result =
           await response.json();
+
       } catch {
+
         throw new Error(
           "El servidor no devolvió una respuesta válida."
         );
@@ -1082,6 +1200,7 @@ async function uploadSource() {
 
 
       if (!response.ok) {
+
         throw new Error(
           result.error ||
           "No se pudo guardar la fuente."
@@ -1131,6 +1250,7 @@ async function uploadSource() {
     sourceFile.value =
       "";
 
+
     await loadSources();
 
 
@@ -1148,6 +1268,7 @@ async function uploadSource() {
       "Error subiendo fuente:",
       error
     );
+
 
     showStatus(
       error.message ||
@@ -1170,6 +1291,7 @@ async function addUrlSource() {
 
   const url =
     sourceUrl.value.trim();
+
 
   if (!url) {
 
@@ -1204,12 +1326,14 @@ async function addUrlSource() {
           },
 
           body: JSON.stringify({
-            name: url,
+            name:
+              url,
 
             content:
               `Fuente web: ${url}`,
 
-            type: "url"
+            type:
+              "url"
           })
         }
       );
@@ -1218,9 +1342,12 @@ async function addUrlSource() {
     let result;
 
     try {
+
       result =
         await response.json();
+
     } catch {
+
       throw new Error(
         "El servidor no devolvió una respuesta válida."
       );
@@ -1238,6 +1365,7 @@ async function addUrlSource() {
 
     sourceUrl.value =
       "";
+
 
     showStatus(
       "URL guardada correctamente."
@@ -1260,6 +1388,7 @@ async function addUrlSource() {
     console.error(
       error
     );
+
 
     showStatus(
       error.message ||
@@ -1286,6 +1415,7 @@ async function deleteSource(
     confirm(
       "¿Seguro que quieres eliminar esta fuente?"
     );
+
 
   if (!confirmed) {
     return;
@@ -1320,9 +1450,12 @@ async function deleteSource(
     let result;
 
     try {
+
       result =
         await response.json();
+
     } catch {
+
       throw new Error(
         "El servidor no devolvió una respuesta válida."
       );
@@ -1359,6 +1492,7 @@ async function deleteSource(
     console.error(
       error
     );
+
 
     showStatus(
       error.message ||
@@ -1477,15 +1611,19 @@ form.addEventListener(
 
     event.preventDefault();
 
+
     const question =
       input.value;
+
 
     input.value =
       "";
 
+
     await ask(
       question
     );
+
 
     input.focus();
   }
@@ -1514,6 +1652,10 @@ document
   );
 
 
+// ======================================================
+// NUEVA CONVERSACIÓN
+// ======================================================
+
 const clearChatButton =
   document.querySelector(
     "#clear-chat"
@@ -1530,8 +1672,10 @@ if (clearChatButton) {
         storageKey
       );
 
+
       messages.innerHTML =
         "";
+
 
       restoreHistory();
     }
