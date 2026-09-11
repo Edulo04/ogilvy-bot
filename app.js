@@ -53,7 +53,7 @@ function normalize(text) {
 // ======================================================
 
 function formatMarkdown(text) {
-  return text
+  return String(text || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -61,6 +61,7 @@ function formatMarkdown(text) {
     .replace(/\*(.*?)\*/g, "<em>$1</em>")
     .replace(/\n/g, "<br>");
 }
+
 
 function addMessage(text, role, reference = "") {
   const row = document.createElement("article");
@@ -152,7 +153,8 @@ async function askAI(question) {
     },
     body: JSON.stringify({
       question,
-      knowledge: buildKnowledge()
+      knowledge: buildKnowledge(),
+      sources
     })
   });
 
@@ -179,11 +181,23 @@ function buildKnowledge() {
 
   return sources
     .map((source) => {
+
+      // Las imágenes no se convierten en texto.
+      // Se envían posteriormente a Gemini como contenido visual.
+      if (String(source.type || "").startsWith("image/")) {
+        return [
+          `Fuente: ${source.name || "Imagen"}`,
+          `Tipo: ${source.type || "imagen"}`,
+          "Esta fuente es una imagen y debe analizarse visualmente."
+        ].join("\n");
+      }
+
       return [
         `Fuente: ${source.name || "Sin nombre"}`,
         `Tipo: ${source.type || "documento"}`,
         source.content || ""
       ].join("\n");
+
     })
     .join("\n\n------------------------------\n\n");
 }
@@ -205,6 +219,7 @@ async function ask(question) {
   const loading = addLoadingMessage();
 
   try {
+
     const result = await askAI(cleanQuestion);
 
     loading.remove();
@@ -216,6 +231,7 @@ async function ask(question) {
     );
 
   } catch (error) {
+
     loading.remove();
 
     addMessage(
@@ -236,7 +252,9 @@ async function ask(question) {
 // ======================================================
 
 async function loadSources() {
+
   try {
+
     const response = await fetch("/api/sources");
 
     const result = await response.json();
@@ -252,6 +270,7 @@ async function loadSources() {
     renderSources();
 
   } catch (error) {
+
     console.error("Error cargando fuentes:", error);
 
     sources = [];
@@ -266,8 +285,10 @@ async function loadSources() {
 // ======================================================
 
 function renderSources() {
+
   sourceCount.textContent = sources.length;
   managerSourceCount.textContent = sources.length;
+
 
   // ----------------------------------------------------
   // SIDEBAR
@@ -277,7 +298,10 @@ function renderSources() {
 
     sourceList.innerHTML = `
       <div class="source-empty">
-        <span class="source-empty-icon">📚</span>
+
+        <span class="source-empty-icon">
+          📚
+        </span>
 
         <p>
           Todavía no hay fuentes cargadas.
@@ -286,6 +310,7 @@ function renderSources() {
         <small>
           Agrega material de estudio para mejorar las respuestas.
         </small>
+
       </div>
     `;
 
@@ -297,19 +322,23 @@ function renderSources() {
 
         return `
           <div class="unit-item">
+
             <span class="unit-number">
               ${getSourceIcon(source.type)}
             </span>
 
             <div>
+
               <strong>
                 ${escapeHtml(source.name || "Fuente")}
               </strong>
 
               <small>
-                ${escapeHtml(source.type || "Documento")}
+                ${escapeHtml(getSourceTypeLabel(source.type))}
               </small>
+
             </div>
+
           </div>
         `;
 
@@ -326,7 +355,10 @@ function renderSources() {
 
     managerSourceList.innerHTML = `
       <div class="source-empty">
-        <span class="source-empty-icon">📚</span>
+
+        <span class="source-empty-icon">
+          📚
+        </span>
 
         <p>
           No hay fuentes cargadas.
@@ -335,6 +367,7 @@ function renderSources() {
         <small>
           Las fuentes que agregues aparecerán aquí.
         </small>
+
       </div>
     `;
 
@@ -355,7 +388,7 @@ function renderSources() {
             </span>
 
             <span class="manager-source-meta">
-              ${escapeHtml(source.type || "Documento")}
+              ${escapeHtml(getSourceTypeLabel(source.type))}
               ·
               ${formatDate(source.uploadedAt)}
             </span>
@@ -390,6 +423,42 @@ function renderSources() {
 
 
 // ======================================================
+// TIPO DE FUENTE
+// ======================================================
+
+function getSourceTypeLabel(type) {
+
+  const value = String(type || "").toLowerCase();
+
+  if (value === "pdf") {
+    return "PDF";
+  }
+
+  if (value === "docx") {
+    return "DOCX";
+  }
+
+  if (value === "txt") {
+    return "TXT";
+  }
+
+  if (value === "url") {
+    return "Página web";
+  }
+
+  if (value.startsWith("image/")) {
+    return "Imagen";
+  }
+
+  if (value === "image") {
+    return "Imagen";
+  }
+
+  return "Documento";
+}
+
+
+// ======================================================
 // ICONO DE FUENTE
 // ======================================================
 
@@ -407,6 +476,10 @@ function getSourceIcon(type) {
 
   if (value === "url") {
     return "WEB";
+  }
+
+  if (value.startsWith("image/") || value === "image") {
+    return "IMG";
   }
 
   return "TXT";
@@ -535,6 +608,59 @@ function hideStatus() {
 
 
 // ======================================================
+// LEER ARCHIVO COMO TEXTO
+// ======================================================
+
+async function readTextFile(file) {
+
+  const content = await file.text();
+
+  if (!content.trim()) {
+    throw new Error("El archivo está vacío.");
+  }
+
+  return content;
+}
+
+
+// ======================================================
+// LEER IMAGEN COMO DATA URL
+// ======================================================
+
+function readImageFile(file) {
+
+  return new Promise((resolve, reject) => {
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+
+      if (!reader.result) {
+        reject(
+          new Error("No se pudo leer la imagen.")
+        );
+
+        return;
+      }
+
+      resolve(reader.result);
+    };
+
+    reader.onerror = () => {
+
+      reject(
+        new Error("No se pudo leer la imagen.")
+      );
+
+    };
+
+    reader.readAsDataURL(file);
+
+  });
+}
+
+
+// ======================================================
 // SUBIR ARCHIVO
 // ======================================================
 
@@ -558,11 +684,43 @@ async function uploadSource() {
     .toLowerCase();
 
 
-  // Por ahora solo TXT
-  if (extension !== "txt") {
+  const isImage = file.type.startsWith("image/");
+
+
+  // ----------------------------------------------------
+  // TIPOS PERMITIDOS
+  // ----------------------------------------------------
+
+  const allowedExtensions = [
+    "txt",
+    "pdf",
+    "docx"
+  ];
+
+
+  // ----------------------------------------------------
+  // POR AHORA:
+  // TXT E IMÁGENES
+  // ----------------------------------------------------
+
+  if (!isImage && !allowedExtensions.includes(extension)) {
 
     showStatus(
-      "Por ahora esta versión permite cargar archivos TXT. PDF y DOCX los habilitaremos en el siguiente paso."
+      "Formato no permitido. Puedes cargar TXT, PDF, DOCX o imágenes."
+    );
+
+    return;
+  }
+
+
+  // ----------------------------------------------------
+  // PDF Y DOCX
+  // ----------------------------------------------------
+
+  if (!isImage && extension !== "txt") {
+
+    showStatus(
+      "PDF y DOCX están preparados en la interfaz, pero todavía habilitaremos su procesamiento en el siguiente paso."
     );
 
     return;
@@ -573,22 +731,85 @@ async function uploadSource() {
 
     uploadSourceButton.disabled = true;
 
+
+    // ==================================================
+    // IMAGEN
+    // ==================================================
+
+    if (isImage) {
+
+      showStatus(
+        "Leyendo la imagen..."
+      );
+
+
+      const imageData = await readImageFile(file);
+
+
+      showStatus(
+        "Guardando la imagen..."
+      );
+
+
+      const response = await fetch(
+        "/api/sources",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json"
+          },
+
+          body: JSON.stringify({
+            name: file.name,
+            content: imageData,
+            type: file.type
+          })
+        }
+      );
+
+
+      const result = await response.json();
+
+
+      if (!response.ok) {
+
+        throw new Error(
+          result.error ||
+          "No se pudo guardar la imagen."
+        );
+      }
+
+
+      showStatus(
+        "Imagen guardada correctamente."
+      );
+
+
+      sourceFile.value = "";
+
+      await loadSources();
+
+
+      setTimeout(() => {
+        hideStatus();
+      }, 1500);
+
+
+      return;
+    }
+
+
+    // ==================================================
+    // TXT
+    // ==================================================
+
     showStatus(
       "Leyendo el archivo..."
     );
 
 
-    const content = await file.text();
-
-
-    if (!content.trim()) {
-
-      showStatus(
-        "El archivo está vacío."
-      );
-
-      return;
-    }
+    const content = await readTextFile(file);
 
 
     showStatus(
