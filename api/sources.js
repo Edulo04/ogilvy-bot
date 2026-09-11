@@ -10,11 +10,14 @@ async function streamToBuffer(stream) {
   return Buffer.concat(chunks);
 }
 
-function isBinaryFile(type) {
+function isTextFile(type) {
+  const value = String(type || "").toLowerCase();
+
   return (
-    type === "application/pdf" ||
-    type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-    type.startsWith("image/")
+    value === "txt" ||
+    value === "text/plain" ||
+    value.startsWith("text/") ||
+    value === "url"
   );
 }
 
@@ -22,13 +25,16 @@ export default async function handler(req, res) {
   try {
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
       return res.status(500).json({
-        error: "Vercel Blob no está configurado correctamente."
+        error:
+          "Vercel Blob no está configurado correctamente."
       });
     }
 
-    // ==========================================
-    // GET - OBTENER TODAS LAS FUENTES
-    // ==========================================
+    // ======================================================
+    // GET
+    // CARGAR LISTA DE FUENTES
+    // ======================================================
+
     if (req.method === "GET") {
       const result = await list({
         token: process.env.BLOB_READ_WRITE_TOKEN,
@@ -39,48 +45,60 @@ export default async function handler(req, res) {
 
       for (const blob of result.blobs) {
         try {
-          const fileResult = await get(blob.pathname, {
-            access: "private",
-            token: process.env.BLOB_READ_WRITE_TOKEN,
-            useCache: false
-          });
-
           let content = "";
 
-          if (fileResult && fileResult.statusCode === 200) {
-            const buffer = await streamToBuffer(fileResult.stream);
+          const contentType =
+            blob.contentType ||
+            "application/octet-stream";
 
-            const contentType =
-              fileResult.headers?.get?.("content-type") ||
-              blob.contentType ||
-              "application/octet-stream";
+          // ------------------------------------------------
+          // SOLO LEEMOS EL CONTENIDO DE ARCHIVOS DE TEXTO
+          // ------------------------------------------------
+          //
+          // PDF, DOCX e imágenes NO se convierten a Base64
+          // aquí porque pueden ser archivos grandes.
+          //
+          // api/chat.js los leerá directamente desde Blob
+          // utilizando su pathname.
+          // ------------------------------------------------
+
+          if (isTextFile(contentType)) {
+            const fileResult = await get(
+              blob.pathname,
+              {
+                access: "private",
+                token:
+                  process.env.BLOB_READ_WRITE_TOKEN,
+                useCache: false
+              }
+            );
 
             if (
-              contentType.startsWith("image/")
+              fileResult &&
+              fileResult.statusCode === 200
             ) {
+              const buffer =
+                await streamToBuffer(
+                  fileResult.stream
+                );
+
               content =
-                `data:${contentType};base64,${buffer.toString("base64")}`;
-            } else if (
-              contentType === "text/plain" ||
-              contentType.startsWith("text/")
-            ) {
-              content = buffer.toString("utf-8");
-            } else {
-              // PDF y DOCX se mantienen como archivo binario.
-              content = "";
+                buffer.toString("utf-8");
             }
           }
 
-          let name = blob.pathname.replace(/^sources\/\d+-/, "");
+          const name =
+            blob.pathname.replace(
+              /^sources\/\d+-/,
+              ""
+            );
 
           sources.push({
             url: blob.url,
             pathname: blob.pathname,
             name,
             content,
-            type:
-              blob.contentType ||
-              "application/octet-stream",
+            type: contentType,
             size: blob.size,
             uploadedAt: blob.uploadedAt
           });
@@ -95,7 +113,11 @@ export default async function handler(req, res) {
           sources.push({
             url: blob.url,
             pathname: blob.pathname,
-            name: blob.pathname.replace(/^sources\/\d+-/, ""),
+            name:
+              blob.pathname.replace(
+                /^sources\/\d+-/,
+                ""
+              ),
             content: "",
             type:
               blob.contentType ||
@@ -111,9 +133,11 @@ export default async function handler(req, res) {
       });
     }
 
-    // ==========================================
-    // POST - GUARDAR UNA NUEVA FUENTE
-    // ==========================================
+    // ======================================================
+    // POST
+    // GUARDAR TXT O URL
+    // ======================================================
+
     if (req.method === "POST") {
       const {
         name,
@@ -123,7 +147,8 @@ export default async function handler(req, res) {
 
       if (!name || !content) {
         return res.status(400).json({
-          error: "Faltan datos. Se necesita name y content."
+          error:
+            "Faltan datos. Se necesita name y content."
         });
       }
 
@@ -134,48 +159,29 @@ export default async function handler(req, res) {
         )
         .slice(0, 100);
 
-      const sourceType =
+      let sourceType =
         type || "text/plain";
 
-      let blobContent = content;
-
-      // ==========================================
-      // ARCHIVOS BINARIOS
-      // PDF / DOCX / IMÁGENES
-      // ==========================================
-      if (isBinaryFile(sourceType)) {
-        if (
-          typeof content === "string" &&
-          content.includes(";base64,")
-        ) {
-          const base64Data =
-            content.split(";base64,")[1];
-
-          blobContent = Buffer.from(
-            base64Data,
-            "base64"
-          );
-        } else {
-          return res.status(400).json({
-            error:
-              "El archivo binario no tiene un formato válido."
-          });
-        }
+      // Para TXT utilizamos un MIME válido.
+      if (sourceType === "txt") {
+        sourceType = "text/plain";
       }
 
       const blob = await put(
         `sources/${Date.now()}-${safeName}`,
-        blobContent,
+        content,
         {
           access: "private",
-          token: process.env.BLOB_READ_WRITE_TOKEN,
+          token:
+            process.env.BLOB_READ_WRITE_TOKEN,
           addRandomSuffix: false,
           contentType: sourceType
         }
       );
 
       return res.status(201).json({
-        message: "Fuente guardada correctamente.",
+        message:
+          "Fuente guardada correctamente.",
         source: {
           url: blob.url,
           pathname: blob.pathname,
@@ -187,9 +193,11 @@ export default async function handler(req, res) {
       });
     }
 
-    // ==========================================
-    // DELETE - ELIMINAR UNA FUENTE
-    // ==========================================
+    // ======================================================
+    // DELETE
+    // ELIMINAR FUENTE
+    // ======================================================
+
     if (req.method === "DELETE") {
       const {
         pathname
@@ -197,27 +205,35 @@ export default async function handler(req, res) {
 
       if (!pathname) {
         return res.status(400).json({
-          error: "Falta el pathname de la fuente."
+          error:
+            "Falta el pathname de la fuente."
         });
       }
 
       if (!pathname.startsWith("sources/")) {
         return res.status(400).json({
-          error: "Fuente no válida."
+          error:
+            "Fuente no válida."
         });
       }
 
-      await del(pathname, {
-        token: process.env.BLOB_READ_WRITE_TOKEN
-      });
+      await del(
+        pathname,
+        {
+          token:
+            process.env.BLOB_READ_WRITE_TOKEN
+        }
+      );
 
       return res.status(200).json({
-        message: "Fuente eliminada correctamente."
+        message:
+          "Fuente eliminada correctamente."
       });
     }
 
     return res.status(405).json({
-      error: "Método no permitido."
+      error:
+        "Método no permitido."
     });
 
   } catch (error) {
@@ -227,9 +243,11 @@ export default async function handler(req, res) {
     );
 
     return res.status(500).json({
-      error: "No se pudo procesar la fuente.",
+      error:
+        "No se pudo procesar la fuente.",
       details:
-        error?.message || String(error)
+        error?.message ||
+        String(error)
     });
   }
 }
