@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { get } from "@vercel/blob";
+import mammoth from "mammoth";
 
 async function streamToBuffer(stream) {
   const chunks = [];
@@ -9,6 +10,20 @@ async function streamToBuffer(stream) {
   }
 
   return Buffer.concat(chunks);
+}
+
+async function getBlobBuffer(pathname) {
+  const fileResult = await get(pathname, {
+    access: "private",
+    token: process.env.BLOB_READ_WRITE_TOKEN,
+    useCache: false
+  });
+
+  if (!fileResult || fileResult.statusCode !== 200) {
+    throw new Error(`No se pudo leer el archivo: ${pathname}`);
+  }
+
+  return await streamToBuffer(fileResult.stream);
 }
 
 export default async function handler(req, res) {
@@ -46,15 +61,38 @@ export default async function handler(req, res) {
     ? knowledge
     : "No se proporcionó material de estudio textual.";
 
-  const imageSources = Array.isArray(sources)
-    ? sources.filter(
-        (source) =>
-          source &&
-          typeof source.type === "string" &&
-          source.type.startsWith("image/") &&
-          source.pathname
-      )
+  const allSources = Array.isArray(sources)
+    ? sources
     : [];
+
+  const imageSources = allSources.filter(
+    (source) =>
+      source &&
+      typeof source.type === "string" &&
+      source.type.startsWith("image/") &&
+      source.pathname
+  );
+
+  const pdfSources = allSources.filter(
+    (source) =>
+      source &&
+      source.type === "application/pdf" &&
+      source.pathname
+  );
+
+  const docxSources = allSources.filter(
+    (source) =>
+      source &&
+      (
+        source.type ===
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ||
+        (source.name || "")
+          .toLowerCase()
+          .endsWith(".docx")
+      ) &&
+      source.pathname
+  );
 
   const prompt = `
 Eres Ogilvy Bot, un asistente educativo especializado en Marketing.
@@ -63,8 +101,8 @@ REGLAS IMPORTANTES:
 - Responde siempre en español.
 - Explica de manera clara, sencilla y ordenada.
 - Utiliza principalmente el MATERIAL DE ESTUDIO proporcionado.
-- Las imágenes adjuntas también forman parte del material de estudio.
-- Analiza las imágenes cuando sean relevantes para responder.
+- Los archivos adjuntos también forman parte del material de estudio.
+- Analiza imágenes, PDF y documentos DOCX cuando sean relevantes.
 - No inventes información que no esté respaldada por el material.
 - Puedes reformular y explicar con tus propias palabras.
 - Si la pregunta puede responderse con el material, basa tu respuesta en él.
@@ -77,9 +115,13 @@ MATERIAL DE ESTUDIO TEXTUAL:
 ${material}
 ----------------------------
 
-FUENTES DE IMAGEN:
-Se adjuntan ${imageSources.length} imagen(es) como parte del material de estudio.
-Analízalas cuando aporten información relevante para responder la pregunta.
+FUENTES ADJUNTAS:
+- Imágenes: ${imageSources.length}
+- PDF: ${pdfSources.length}
+- DOCX: ${docxSources.length}
+
+Los archivos adjuntos deben considerarse parte del material de estudio.
+Si una respuesta se encuentra en uno de ellos, utiliza esa información.
 
 PREGUNTA DEL ESTUDIANTE:
 ${question.trim()}
@@ -98,24 +140,15 @@ RESPUESTA:
       }
     ];
 
-    // Cargar las imágenes directamente desde Vercel Blob
+    // ==========================================
+    // IMÁGENES
+    // ==========================================
+
     for (const source of imageSources) {
       try {
-        const fileResult = await get(source.pathname, {
-          access: "private",
-          token: process.env.BLOB_READ_WRITE_TOKEN,
-          useCache: false
-        });
-
-        if (!fileResult || fileResult.statusCode !== 200) {
-          console.error(
-            "No se pudo leer la imagen:",
-            source.pathname
-          );
-          continue;
-        }
-
-        const buffer = await streamToBuffer(fileResult.stream);
+        const buffer = await getBlobBuffer(
+          source.pathname
+        );
 
         parts.push({
           inlineData: {
@@ -124,14 +157,79 @@ RESPUESTA:
           }
         });
 
-      } catch (imageError) {
+      } catch (error) {
         console.error(
           "Error procesando imagen:",
           source.pathname,
-          imageError
+          error
         );
       }
     }
+
+    // ==========================================
+    // PDF
+    // ==========================================
+
+    for (const source of pdfSources) {
+      try {
+        const buffer = await getBlobBuffer(
+          source.pathname
+        );
+
+        parts.push({
+          inlineData: {
+            mimeType: "application/pdf",
+            data: buffer.toString("base64")
+          }
+        });
+
+      } catch (error) {
+        console.error(
+          "Error procesando PDF:",
+          source.pathname,
+          error
+        );
+      }
+    }
+
+    // ==========================================
+    // DOCX
+    // ==========================================
+
+    for (const source of docxSources) {
+      try {
+        const buffer = await getBlobBuffer(
+          source.pathname
+        );
+
+        const result =
+          await mammoth.extractRawText({
+            buffer
+          });
+
+        if (result.value && result.value.trim()) {
+          parts.push({
+            text: `
+DOCUMENTO DOCX: ${source.name || "Documento"}
+
+Contenido:
+${result.value}
+`
+          });
+        }
+
+      } catch (error) {
+        console.error(
+          "Error procesando DOCX:",
+          source.pathname,
+          error
+        );
+      }
+    }
+
+    // ==========================================
+    // ENVIAR TODO A GEMINI
+    // ==========================================
 
     const response = await ai.models.generateContent({
       model: "gemini-3.5-flash-lite",
@@ -144,16 +242,23 @@ RESPUESTA:
     });
 
     return res.status(200).json({
-      answer: response.text || "No pude generar una respuesta.",
+      answer:
+        response.text ||
+        "No pude generar una respuesta.",
       reference: "Ogilvy Bot · Gemini"
     });
 
   } catch (error) {
-    console.error("Gemini error:", error);
+    console.error(
+      "Gemini error:",
+      error
+    );
 
     return res.status(500).json({
-      error: "No se pudo generar una respuesta en este momento.",
-      details: error?.message || String(error)
+      error:
+        "No se pudo generar una respuesta en este momento.",
+      details:
+        error?.message || String(error)
     });
   }
 }
