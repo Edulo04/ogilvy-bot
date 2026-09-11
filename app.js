@@ -148,9 +148,11 @@ function restoreHistory() {
 async function askAI(question) {
   const response = await fetch("/api/chat", {
     method: "POST",
+
     headers: {
       "Content-Type": "application/json"
     },
+
     body: JSON.stringify({
       question,
       knowledge: buildKnowledge(),
@@ -189,6 +191,19 @@ function buildKnowledge() {
           `Fuente: ${source.name || "Imagen"}`,
           `Tipo: ${source.type || "imagen"}`,
           "Esta fuente es una imagen y debe analizarse visualmente."
+        ].join("\n");
+      }
+
+      // PDF y DOCX se envían posteriormente desde el backend.
+      if (
+        String(source.type || "").toLowerCase() === "application/pdf" ||
+        String(source.type || "").toLowerCase() ===
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ) {
+        return [
+          `Fuente: ${source.name || "Documento"}`,
+          `Tipo: ${source.type || "documento"}`,
+          "Esta fuente es un documento adjunto y debe analizarse."
         ].join("\n");
       }
 
@@ -430,15 +445,25 @@ function getSourceTypeLabel(type) {
 
   const value = String(type || "").toLowerCase();
 
-  if (value === "pdf") {
+  if (
+    value === "pdf" ||
+    value === "application/pdf"
+  ) {
     return "PDF";
   }
 
-  if (value === "docx") {
+  if (
+    value === "docx" ||
+    value ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ) {
     return "DOCX";
   }
 
-  if (value === "txt") {
+  if (
+    value === "txt" ||
+    value === "text/plain"
+  ) {
     return "TXT";
   }
 
@@ -466,11 +491,18 @@ function getSourceIcon(type) {
 
   const value = String(type || "").toLowerCase();
 
-  if (value === "pdf") {
+  if (
+    value === "pdf" ||
+    value === "application/pdf"
+  ) {
     return "PDF";
   }
 
-  if (value === "docx") {
+  if (
+    value === "docx" ||
+    value ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ) {
     return "DOC";
   }
 
@@ -478,8 +510,18 @@ function getSourceIcon(type) {
     return "WEB";
   }
 
-  if (value.startsWith("image/") || value === "image") {
+  if (
+    value.startsWith("image/") ||
+    value === "image"
+  ) {
     return "IMG";
+  }
+
+  if (
+    value === "txt" ||
+    value === "text/plain"
+  ) {
+    return "TXT";
   }
 
   return "TXT";
@@ -508,6 +550,7 @@ function formatDate(value) {
     );
 
   } catch {
+
     return "Fecha desconocida";
   }
 }
@@ -624,10 +667,10 @@ async function readTextFile(file) {
 
 
 // ======================================================
-// LEER IMAGEN COMO DATA URL
+// LEER ARCHIVO BINARIO COMO DATA URL
 // ======================================================
 
-function readImageFile(file) {
+function readBinaryFile(file) {
 
   return new Promise((resolve, reject) => {
 
@@ -636,8 +679,9 @@ function readImageFile(file) {
     reader.onload = () => {
 
       if (!reader.result) {
+
         reject(
-          new Error("No se pudo leer la imagen.")
+          new Error("No se pudo leer el archivo.")
         );
 
         return;
@@ -649,7 +693,7 @@ function readImageFile(file) {
     reader.onerror = () => {
 
       reject(
-        new Error("No se pudo leer la imagen.")
+        new Error("No se pudo leer el archivo.")
       );
 
     };
@@ -698,29 +742,13 @@ async function uploadSource() {
   ];
 
 
-  // ----------------------------------------------------
-  // POR AHORA:
-  // TXT E IMÁGENES
-  // ----------------------------------------------------
-
-  if (!isImage && !allowedExtensions.includes(extension)) {
+  if (
+    !isImage &&
+    !allowedExtensions.includes(extension)
+  ) {
 
     showStatus(
       "Formato no permitido. Puedes cargar TXT, PDF, DOCX o imágenes."
-    );
-
-    return;
-  }
-
-
-  // ----------------------------------------------------
-  // PDF Y DOCX
-  // ----------------------------------------------------
-
-  if (!isImage && extension !== "txt") {
-
-    showStatus(
-      "PDF y DOCX están preparados en la interfaz, pero todavía habilitaremos su procesamiento en el siguiente paso."
     );
 
     return;
@@ -733,22 +761,53 @@ async function uploadSource() {
 
 
     // ==================================================
-    // IMAGEN
+    // IMAGEN, PDF Y DOCX
     // ==================================================
 
-    if (isImage) {
+    if (
+      isImage ||
+      extension === "pdf" ||
+      extension === "docx"
+    ) {
+
+      let message = "Leyendo el archivo...";
+
+      if (isImage) {
+        message = "Leyendo la imagen...";
+      }
+
+      if (extension === "pdf") {
+        message = "Leyendo el PDF...";
+      }
+
+      if (extension === "docx") {
+        message = "Leyendo el documento DOCX...";
+      }
+
+      showStatus(message);
+
+
+      const fileData = await readBinaryFile(file);
+
 
       showStatus(
-        "Leyendo la imagen..."
+        "Guardando la fuente..."
       );
 
 
-      const imageData = await readImageFile(file);
+      let contentType = file.type;
 
+      if (!contentType) {
 
-      showStatus(
-        "Guardando la imagen..."
-      );
+        if (extension === "pdf") {
+          contentType = "application/pdf";
+        }
+
+        if (extension === "docx") {
+          contentType =
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        }
+      }
 
 
       const response = await fetch(
@@ -762,8 +821,8 @@ async function uploadSource() {
 
           body: JSON.stringify({
             name: file.name,
-            content: imageData,
-            type: file.type
+            content: fileData,
+            type: contentType
           })
         }
       );
@@ -776,14 +835,30 @@ async function uploadSource() {
 
         throw new Error(
           result.error ||
-          "No se pudo guardar la imagen."
+          "No se pudo guardar el archivo."
         );
       }
 
 
-      showStatus(
-        "Imagen guardada correctamente."
-      );
+      if (isImage) {
+
+        showStatus(
+          "Imagen guardada correctamente."
+        );
+
+      } else if (extension === "pdf") {
+
+        showStatus(
+          "PDF guardado correctamente."
+        );
+
+      } else {
+
+        showStatus(
+          "DOCX guardado correctamente."
+        );
+
+      }
 
 
       sourceFile.value = "";
@@ -829,7 +904,7 @@ async function uploadSource() {
         body: JSON.stringify({
           name: file.name,
           content,
-          type: "txt"
+          type: "text/plain"
         })
       }
     );
@@ -937,6 +1012,7 @@ async function addUrlSource() {
 
 
     sourceUrl.value = "";
+
 
     showStatus(
       "URL guardada correctamente."
