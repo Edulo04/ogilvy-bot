@@ -715,7 +715,125 @@ button {
 }
 
 .bubble p {
-  margin: 0;
+  margin: 0 0 10px;
+}
+
+.bubble p:last-child {
+  margin-bottom: 0;
+}
+
+
+/* =========================================================
+   CONTENIDO MARKDOWN DE LAS RESPUESTAS
+   ========================================================= */
+
+.message-content {
+  min-width: 0;
+
+  width: 100%;
+}
+
+.message-content p {
+  margin: 0 0 10px;
+
+  line-height: 1.65;
+}
+
+.message-content p:last-child {
+  margin-bottom: 0;
+}
+
+
+/* =========================================================
+   TÍTULOS MARKDOWN
+   ========================================================= */
+
+.message-content h1,
+.message-content h2,
+.message-content h3 {
+  margin: 16px 0 9px;
+
+  color: var(--ink);
+
+  line-height: 1.25;
+
+  letter-spacing: -.02em;
+
+  font-weight: 850;
+}
+
+.message-content h1:first-child,
+.message-content h2:first-child,
+.message-content h3:first-child {
+  margin-top: 0;
+}
+
+.message-content h1 {
+  font-size: 1.18rem;
+}
+
+.message-content h2 {
+  font-size: 1.08rem;
+}
+
+.message-content h3 {
+  font-size: 1rem;
+}
+
+
+/* =========================================================
+   NEGRITAS
+   ========================================================= */
+
+.message-content strong {
+  color: #0d3157;
+
+  font-weight: 850;
+}
+
+
+/* =========================================================
+   CURSIVA
+   ========================================================= */
+
+.message-content em {
+  font-style: italic;
+}
+
+
+/* =========================================================
+   LISTAS
+   ========================================================= */
+
+.message-content ul,
+.message-content ol {
+  margin: 8px 0 12px;
+
+  padding-left: 24px;
+}
+
+.message-content li {
+  margin: 5px 0;
+
+  padding-left: 3px;
+
+  line-height: 1.55;
+}
+
+.message-content li:last-child {
+  margin-bottom: 0;
+}
+
+
+/* =========================================================
+   TEXTO DEL USUARIO
+   ========================================================= */
+
+.user .message-content strong,
+.user .message-content h1,
+.user .message-content h2,
+.user .message-content h3 {
+  color: #fff;
 }
 
 
