@@ -6,70 +6,28 @@ const storageKey = "ogilvy-bot-history-v2";
 
 let sources = [];
 
-// ======================================================
-// ELEMENTOS DE FUENTES
-// ======================================================
+const manageSourcesButton = document.querySelector("#manage-sources");
+const sourcesModal = document.querySelector("#sources-modal");
+const closeSourcesButton = document.querySelector("#close-sources");
+const modalOverlay = document.querySelector("#modal-overlay");
 
-const manageSourcesButton =
-  document.querySelector("#manage-sources");
+const sourceCount = document.querySelector("#source-count");
+const sourceList = document.querySelector("#source-list");
+const managerSourceCount = document.querySelector("#manager-source-count");
+const managerSourceList = document.querySelector("#manager-source-list");
 
-const sourcesModal =
-  document.querySelector("#sources-modal");
+const sourceOptions = document.querySelectorAll(".source-option");
 
-const closeSourcesButton =
-  document.querySelector("#close-sources");
+const fileSourceForm = document.querySelector("#file-source-form");
+const urlSourceForm = document.querySelector("#url-source-form");
 
-const modalOverlay =
-  document.querySelector("#modal-overlay");
+const sourceFile = document.querySelector("#source-file");
+const sourceUrl = document.querySelector("#source-url");
 
-const sourceCount =
-  document.querySelector("#source-count");
+const uploadSourceButton = document.querySelector("#upload-source");
+const addUrlSourceButton = document.querySelector("#add-url-source");
 
-const sourceList =
-  document.querySelector("#source-list");
-
-const managerSourceCount =
-  document.querySelector("#manager-source-count");
-
-const managerSourceList =
-  document.querySelector("#manager-source-list");
-
-const sourceOptions =
-  document.querySelectorAll(".source-option");
-
-const fileSourceForm =
-  document.querySelector("#file-source-form");
-
-const urlSourceForm =
-  document.querySelector("#url-source-form");
-
-const sourceFile =
-  document.querySelector("#source-file");
-
-const sourceUrl =
-  document.querySelector("#source-url");
-
-const uploadSourceButton =
-  document.querySelector("#upload-source");
-
-const addUrlSourceButton =
-  document.querySelector("#add-url-source");
-
-const sourceStatus =
-  document.querySelector("#source-status");
-
-
-// ======================================================
-// UTILIDADES
-// ======================================================
-
-function normalize(text) {
-  return String(text || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9ñ\s]/g, " ");
-}
+const sourceStatus = document.querySelector("#source-status");
 
 
 // ======================================================
@@ -77,13 +35,119 @@ function normalize(text) {
 // ======================================================
 
 function formatMarkdown(text) {
-  return String(text || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.*?)\*/g, "<em>$1</em>")
-    .replace(/\n/g, "<br>");
+  const lines = String(text || "").split(/\r?\n/);
+  const output = [];
+
+  let inUnorderedList = false;
+  let inOrderedList = false;
+
+  function escapeHtml(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function inlineMarkdown(value) {
+    return escapeHtml(value)
+      // Negrita
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/__(.+?)__/g, "<strong>$1</strong>")
+
+      // Cursiva
+      .replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, "<em>$1</em>")
+      .replace(/(?<!_)_([^_\n]+?)_(?!_)/g, "<em>$1</em>");
+  }
+
+  function closeLists() {
+    if (inUnorderedList) {
+      output.push("</ul>");
+      inUnorderedList = false;
+    }
+
+    if (inOrderedList) {
+      output.push("</ol>");
+      inOrderedList = false;
+    }
+  }
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+
+    if (!line) {
+      closeLists();
+      continue;
+    }
+
+    // Títulos ###, ## y #
+    const heading = line.match(/^(#{1,3})\s+(.+)$/);
+
+    if (heading) {
+      closeLists();
+
+      const level = heading[1].length;
+
+      output.push(
+        `<h${level}>${inlineMarkdown(heading[2])}</h${level}>`
+      );
+
+      continue;
+    }
+
+    // Lista con -, * o •
+    const unordered = line.match(/^[-*•]\s+(.+)$/);
+
+    if (unordered) {
+      if (inOrderedList) {
+        output.push("</ol>");
+        inOrderedList = false;
+      }
+
+      if (!inUnorderedList) {
+        output.push("<ul>");
+        inUnorderedList = true;
+      }
+
+      output.push(
+        `<li>${inlineMarkdown(unordered[1])}</li>`
+      );
+
+      continue;
+    }
+
+    // Lista numerada
+    const ordered = line.match(/^\d+[.)]\s+(.+)$/);
+
+    if (ordered) {
+      if (inUnorderedList) {
+        output.push("</ul>");
+        inUnorderedList = false;
+      }
+
+      if (!inOrderedList) {
+        output.push("<ol>");
+        inOrderedList = true;
+      }
+
+      output.push(
+        `<li>${inlineMarkdown(ordered[1])}</li>`
+      );
+
+      continue;
+    }
+
+    closeLists();
+
+    output.push(
+      `<p>${inlineMarkdown(line)}</p>`
+    );
+  }
+
+  closeLists();
+
+  return output.join("");
 }
 
 
@@ -91,51 +155,38 @@ function formatMarkdown(text) {
 // MENSAJES
 // ======================================================
 
-function addMessage(
-  text,
-  role,
-  reference = ""
-) {
-  const row =
-    document.createElement("article");
+function addMessage(text, role, reference = "") {
+  const row = document.createElement("article");
 
-  row.className =
-    `message ${role}`;
+  row.className = `message ${role}`;
 
-  const avatar =
-    document.createElement("div");
+  const avatar = document.createElement("div");
 
-  avatar.className =
-    "avatar";
+  avatar.className = "avatar";
 
   avatar.textContent =
     role === "assistant"
       ? "O"
       : "Tú";
 
-  const bubble =
-    document.createElement("div");
+  const bubble = document.createElement("div");
 
-  bubble.className =
-    "bubble";
+  bubble.className = "bubble";
 
-  const paragraph =
-    document.createElement("p");
+  const content = document.createElement("div");
 
-  paragraph.innerHTML =
-    formatMarkdown(text);
+  content.className = "message-content";
 
-  bubble.append(paragraph);
+  content.innerHTML = formatMarkdown(text);
+
+  bubble.append(content);
 
   if (reference) {
-    const source =
-      document.createElement("span");
+    const source = document.createElement("span");
 
-    source.className =
-      "reference";
+    source.className = "reference";
 
-    source.textContent =
-      `Referencia: ${reference}`;
+    source.textContent = `Referencia: ${reference}`;
 
     bubble.append(source);
   }
@@ -147,20 +198,16 @@ function addMessage(
 
   messages.append(row);
 
-  messages.scrollTop =
-    messages.scrollHeight;
+  messages.scrollTop = messages.scrollHeight;
 }
 
 
 function addLoadingMessage() {
-  const row =
-    document.createElement("article");
+  const row = document.createElement("article");
 
-  row.className =
-    "message assistant";
+  row.className = "message assistant";
 
-  row.dataset.loading =
-    "true";
+  row.dataset.loading = "true";
 
   row.innerHTML = `
     <div class="avatar">O</div>
@@ -172,8 +219,7 @@ function addLoadingMessage() {
 
   messages.append(row);
 
-  messages.scrollTop =
-    messages.scrollHeight;
+  messages.scrollTop = messages.scrollHeight;
 
   return row;
 }
@@ -192,13 +238,10 @@ function saveHistory() {
 
 
 function restoreHistory() {
-  const history =
-    localStorage.getItem(storageKey);
+  const history = localStorage.getItem(storageKey);
 
   if (history) {
-    messages.innerHTML =
-      history;
-
+    messages.innerHTML = history;
     return;
   }
 
@@ -223,53 +266,39 @@ Podés preguntarme sobre cualquiera de estos temas y te lo explicaré de forma c
 
 
 // ======================================================
-// API DE GEMINI
+// GEMINI
 // ======================================================
 
 async function askAI(question) {
-  const response =
-    await fetch(
-      "/api/chat",
-      {
-        method: "POST",
+  const response = await fetch(
+    "/api/chat",
+    {
+      method: "POST",
 
-        headers: {
-          "Content-Type":
-            "application/json"
-        },
+      headers: {
+        "Content-Type": "application/json"
+      },
 
-        body: JSON.stringify({
-          question,
+      body: JSON.stringify({
+        question,
+        knowledge: buildKnowledge(),
 
-          knowledge:
-            buildKnowledge(),
-
-          sources:
-            sources.map(
-              (source) => ({
-                name:
-                  source.name || "",
-
-                pathname:
-                  source.pathname || "",
-
-                type:
-                  source.type || "",
-
-                size:
-                  source.size || 0
-              })
-            )
-        })
-      }
-    );
+        sources: sources.map(
+          source => ({
+            name: source.name || "",
+            pathname: source.pathname || "",
+            type: source.type || "",
+            size: source.size || 0
+          })
+        )
+      })
+    }
+  );
 
   let result;
 
   try {
-    result =
-      await response.json();
-
+    result = await response.json();
   } catch {
     throw new Error(
       "El servidor devolvió una respuesta que no se pudo interpretar."
@@ -293,110 +322,52 @@ async function askAI(question) {
 
 function buildKnowledge() {
   if (!sources.length) {
-    return (
-      "No hay fuentes de conocimiento " +
-      "cargadas todavía."
-    );
+    return "No hay fuentes de conocimiento cargadas todavía.";
   }
 
   return sources
-    .map(
-      (source) => {
+    .map(source => {
+      const type = String(
+        source.type || ""
+      ).toLowerCase();
 
-        const type =
-          String(
-            source.type || ""
-          ).toLowerCase();
-
-
-        // ------------------------------------------------
-        // IMAGEN
-        // ------------------------------------------------
-
-        if (
-          type.startsWith("image/")
-        ) {
-          return [
-            `Fuente: ${source.name || "Imagen"}`,
-
-            `Tipo: ${
-              source.type || "imagen"
-            }`,
-
-            "Esta fuente es una imagen y debe analizarse visualmente."
-          ].join("\n");
-        }
-
-
-        // ------------------------------------------------
-        // PDF
-        // ------------------------------------------------
-
-        if (
-          type === "application/pdf" ||
-          type === "pdf"
-        ) {
-          return [
-            `Fuente: ${
-              source.name ||
-              "Documento PDF"
-            }`,
-
-            `Tipo: ${
-              source.type ||
-              "PDF"
-            }`,
-
-            "Esta fuente es un documento PDF y debe analizarse directamente desde el archivo."
-          ].join("\n");
-        }
-
-
-        // ------------------------------------------------
-        // DOCX
-        // ------------------------------------------------
-
-        if (
-          type ===
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-          type === "docx"
-        ) {
-          return [
-            `Fuente: ${
-              source.name ||
-              "Documento DOCX"
-            }`,
-
-            `Tipo: ${
-              source.type ||
-              "DOCX"
-            }`,
-
-            "Esta fuente es un documento DOCX y debe analizarse desde su contenido."
-          ].join("\n");
-        }
-
-
-        // ------------------------------------------------
-        // TXT / URL
-        // ------------------------------------------------
-
+      if (type.startsWith("image/")) {
         return [
-          `Fuente: ${
-            source.name ||
-            "Sin nombre"
-          }`,
-
-          `Tipo: ${
-            source.type ||
-            "documento"
-          }`,
-
-          source.content || ""
+          `Fuente: ${source.name || "Imagen"}`,
+          `Tipo: ${source.type || "imagen"}`,
+          "Esta fuente es una imagen y debe analizarse visualmente."
         ].join("\n");
-
       }
-    )
+
+      if (
+        type === "application/pdf" ||
+        type === "pdf"
+      ) {
+        return [
+          `Fuente: ${source.name || "Documento PDF"}`,
+          `Tipo: ${source.type || "PDF"}`,
+          "Esta fuente es un documento PDF y debe analizarse directamente desde el archivo."
+        ].join("\n");
+      }
+
+      if (
+        type ===
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+        type === "docx"
+      ) {
+        return [
+          `Fuente: ${source.name || "Documento DOCX"}`,
+          `Tipo: ${source.type || "DOCX"}`,
+          "Esta fuente es un documento DOCX y debe analizarse desde su contenido."
+        ].join("\n");
+      }
+
+      return [
+        `Fuente: ${source.name || "Sin nombre"}`,
+        `Tipo: ${source.type || "documento"}`,
+        source.content || ""
+      ].join("\n");
+    })
     .join(
       "\n\n------------------------------\n\n"
     );
@@ -404,12 +375,11 @@ function buildKnowledge() {
 
 
 // ======================================================
-// HACER PREGUNTA
+// PREGUNTAR
 // ======================================================
 
 async function ask(question) {
-  const cleanQuestion =
-    question.trim();
+  const cleanQuestion = question.trim();
 
   if (!cleanQuestion) {
     return;
@@ -420,15 +390,12 @@ async function ask(question) {
     "user"
   );
 
-  const loading =
-    addLoadingMessage();
+  const loading = addLoadingMessage();
 
   try {
-
-    const result =
-      await askAI(
-        cleanQuestion
-      );
+    const result = await askAI(
+      cleanQuestion
+    );
 
     loading.remove();
 
@@ -440,7 +407,6 @@ async function ask(question) {
     );
 
   } catch (error) {
-
     loading.remove();
 
     addMessage(
@@ -457,46 +423,37 @@ async function ask(question) {
 
 
 // ======================================================
-// CARGAR FUENTES DESDE VERCEL
+// CARGAR FUENTES
 // ======================================================
 
 async function loadSources() {
   try {
-
-    const response =
-      await fetch(
-        "/api/sources"
-      );
+    const response = await fetch(
+      "/api/sources"
+    );
 
     let result;
 
     try {
-
-      result =
-        await response.json();
-
+      result = await response.json();
     } catch {
-
       throw new Error(
         "No se pudo interpretar la respuesta del servidor."
       );
     }
 
     if (!response.ok) {
-
       throw new Error(
         result.error ||
         "No se pudieron cargar las fuentes."
       );
     }
 
-    sources =
-      result.sources || [];
+    sources = result.sources || [];
 
     renderSources();
 
   } catch (error) {
-
     console.error(
       "Error cargando fuentes:",
       error
@@ -514,26 +471,16 @@ async function loadSources() {
 // ======================================================
 
 function renderSources() {
-
   sourceCount.textContent =
     sources.length;
 
   managerSourceCount.textContent =
     sources.length;
 
-
-  // ----------------------------------------------------
-  // SIDEBAR
-  // ----------------------------------------------------
-
   if (!sources.length) {
-
     sourceList.innerHTML = `
       <div class="source-empty">
-
-        <span class="source-empty-icon">
-          📚
-        </span>
+        <span class="source-empty-icon">📚</span>
 
         <p>
           Todavía no hay fuentes cargadas.
@@ -542,60 +489,41 @@ function renderSources() {
         <small>
           Agrega material de estudio para mejorar las respuestas.
         </small>
-
       </div>
     `;
-
   } else {
-
     sourceList.innerHTML =
       sources
         .slice(0, 4)
-        .map(
-          (source) => {
+        .map(source => `
+          <div class="unit-item">
 
-            return `
-              <div class="unit-item">
+            <span class="unit-number">
+              ${getSourceIcon(source.type)}
+            </span>
 
-                <span class="unit-number">
-                  ${getSourceIcon(
+            <div>
+              <strong>
+                ${escapeHtml(
+                  source.name || "Fuente"
+                )}
+              </strong>
+
+              <small>
+                ${escapeHtml(
+                  getSourceTypeLabel(
                     source.type
-                  )}
-                </span>
+                  )
+                )}
+              </small>
+            </div>
 
-                <div>
-
-                  <strong>
-                    ${escapeHtml(
-                      source.name ||
-                      "Fuente"
-                    )}
-                  </strong>
-
-                  <small>
-                    ${escapeHtml(
-                      getSourceTypeLabel(
-                        source.type
-                      )
-                    )}
-                  </small>
-
-                </div>
-
-              </div>
-            `;
-          }
-        )
+          </div>
+        `)
         .join("");
   }
 
-
-  // ----------------------------------------------------
-  // ADMINISTRADOR
-  // ----------------------------------------------------
-
   if (!sources.length) {
-
     managerSourceList.innerHTML = `
       <div class="source-empty">
 
@@ -617,91 +545,73 @@ function renderSources() {
     return;
   }
 
-
   managerSourceList.innerHTML =
     sources
-      .map(
-        (source) => {
+      .map(source => `
+        <div class="manager-source-item">
 
-          return `
-            <div class="manager-source-item">
+          <div class="manager-source-info">
 
-              <div class="manager-source-info">
+            <span class="manager-source-name">
+              ${escapeHtml(
+                source.name || "Fuente"
+              )}
+            </span>
 
-                <span class="manager-source-name">
-                  ${escapeHtml(
-                    source.name ||
-                    "Fuente"
-                  )}
-                </span>
+            <span class="manager-source-meta">
+              ${escapeHtml(
+                getSourceTypeLabel(
+                  source.type
+                )
+              )}
+              ·
+              ${formatDate(
+                source.uploadedAt
+              )}
+            </span>
 
-                <span class="manager-source-meta">
-                  ${escapeHtml(
-                    getSourceTypeLabel(
-                      source.type
-                    )
-                  )}
+          </div>
 
-                  ·
+          <button
+            type="button"
+            class="delete-source-button"
+            data-pathname="${escapeAttribute(
+              source.pathname
+            )}"
+          >
+            Eliminar
+          </button>
 
-                  ${formatDate(
-                    source.uploadedAt
-                  )}
-                </span>
-
-              </div>
-
-              <button
-                type="button"
-                class="delete-source-button"
-                data-pathname="${escapeAttribute(
-                  source.pathname
-                )}"
-              >
-                Eliminar
-              </button>
-
-            </div>
-          `;
-        }
-      )
+        </div>
+      `)
       .join("");
-
 
   document
     .querySelectorAll(
       ".delete-source-button"
     )
-    .forEach(
-      (button) => {
-
-        button.addEventListener(
-          "click",
-          () => {
-
-            deleteSource(
-              button.dataset.pathname
-            );
-
-          }
-        );
-
-      }
-    );
+    .forEach(button => {
+      button.addEventListener(
+        "click",
+        () => {
+          deleteSource(
+            button.dataset.pathname
+          );
+        }
+      );
+    });
 }
 
 
 // ======================================================
-// ICONO DE FUENTE
+// ICONOS Y TIPOS
 // ======================================================
 
 function getSourceIcon(type) {
-
   const value =
     String(
       type || ""
     ).toLowerCase();
-
 
   if (
     value === "application/pdf" ||
@@ -709,7 +619,6 @@ function getSourceIcon(type) {
   ) {
     return "PDF";
   }
-
 
   if (
     value ===
@@ -719,13 +628,9 @@ function getSourceIcon(type) {
     return "DOC";
   }
 
-
-  if (
-    value === "url"
-  ) {
+  if (value === "url") {
     return "WEB";
   }
-
 
   if (
     value.startsWith("image/")
@@ -733,22 +638,15 @@ function getSourceIcon(type) {
     return "IMG";
   }
 
-
   return "TXT";
 }
 
 
-// ======================================================
-// TIPO DE FUENTE
-// ======================================================
-
 function getSourceTypeLabel(type) {
-
   const value =
     String(
       type || ""
     ).toLowerCase();
-
 
   if (
     value === "application/pdf" ||
@@ -756,7 +654,6 @@ function getSourceTypeLabel(type) {
   ) {
     return "PDF";
   }
-
 
   if (
     value ===
@@ -766,13 +663,9 @@ function getSourceTypeLabel(type) {
     return "DOCX";
   }
 
-
-  if (
-    value === "url"
-  ) {
+  if (value === "url") {
     return "URL";
   }
-
 
   if (
     value.startsWith("image/")
@@ -780,23 +673,16 @@ function getSourceTypeLabel(type) {
     return "Imagen";
   }
 
-
   return "TXT";
 }
 
 
-// ======================================================
-// FECHA
-// ======================================================
-
 function formatDate(value) {
-
   if (!value) {
     return "Fecha desconocida";
   }
 
   try {
-
     return new Date(
       value
     ).toLocaleDateString(
@@ -807,20 +693,17 @@ function formatDate(value) {
         year: "numeric"
       }
     );
-
   } catch {
-
     return "Fecha desconocida";
   }
 }
 
 
 // ======================================================
-// SEGURIDAD HTML
+// SEGURIDAD
 // ======================================================
 
 function escapeHtml(value) {
-
   return String(
     value || ""
   )
@@ -853,11 +736,10 @@ function escapeAttribute(value) {
 
 
 // ======================================================
-// ABRIR MODAL
+// MODAL
 // ======================================================
 
 function openSourcesModal() {
-
   sourcesModal.classList.remove(
     "hidden"
   );
@@ -871,12 +753,7 @@ function openSourcesModal() {
 }
 
 
-// ======================================================
-// CERRAR MODAL
-// ======================================================
-
 function closeSourcesModal() {
-
   sourcesModal.classList.add(
     "hidden"
   );
@@ -889,15 +766,11 @@ function closeSourcesModal() {
 
 
 // ======================================================
-// SELECCIÓN DOCUMENTO / URL
+// TIPO DE FUENTE
 // ======================================================
 
 function selectSourceType(type) {
-
-  if (
-    type === "file"
-  ) {
-
+  if (type === "file") {
     fileSourceForm.classList.remove(
       "hidden"
     );
@@ -907,11 +780,7 @@ function selectSourceType(type) {
     );
   }
 
-
-  if (
-    type === "url"
-  ) {
-
+  if (type === "url") {
     urlSourceForm.classList.remove(
       "hidden"
     );
@@ -924,11 +793,10 @@ function selectSourceType(type) {
 
 
 // ======================================================
-// MOSTRAR ESTADO
+// ESTADO
 // ======================================================
 
 function showStatus(message) {
-
   sourceStatus.textContent =
     message;
 
@@ -939,7 +807,6 @@ function showStatus(message) {
 
 
 function hideStatus() {
-
   sourceStatus.textContent =
     "";
 
@@ -950,109 +817,89 @@ function hideStatus() {
 
 
 // ======================================================
-// OBTENER URL FIRMADA
+// URL DE SUBIDA
 // ======================================================
 
 async function getUploadUrl(file) {
+  const response = await fetch(
+    "/api/upload-url",
+    {
+      method: "POST",
 
-  const response =
-    await fetch(
-      "/api/upload-url",
-      {
-        method: "POST",
+      headers: {
+        "Content-Type":
+          "application/json"
+      },
 
-        headers: {
-          "Content-Type":
-            "application/json"
-        },
-
-        body: JSON.stringify({
-          name:
-            file.name,
-
-          type:
-            file.type ||
-            "application/octet-stream"
-        })
-      }
-    );
+      body: JSON.stringify({
+        name: file.name,
+        type:
+          file.type ||
+          "application/octet-stream"
+      })
+    }
+  );
 
   let result;
 
   try {
-
     result =
       await response.json();
-
   } catch {
-
     throw new Error(
       "El servidor no devolvió una respuesta válida al preparar la subida."
     );
   }
 
-
   if (!response.ok) {
-
     throw new Error(
       result.error ||
       "No se pudo preparar la subida."
     );
   }
 
-
   if (!result.uploadUrl) {
-
     throw new Error(
       "El servidor no devolvió una URL de subida."
     );
   }
-
 
   return result;
 }
 
 
 // ======================================================
-// SUBIR ARCHIVO DIRECTAMENTE A BLOB
+// SUBIDA DIRECTA A BLOB
 // ======================================================
 
 async function uploadFileDirectly(
   file,
   uploadUrl
 ) {
+  const response = await fetch(
+    uploadUrl,
+    {
+      method: "PUT",
 
-  const response =
-    await fetch(
-      uploadUrl,
-      {
-        method: "PUT",
+      headers: {
+        "Content-Type":
+          file.type ||
+          "application/octet-stream"
+      },
 
-        headers: {
-          "Content-Type":
-            file.type ||
-            "application/octet-stream"
-        },
-
-        body: file
-      }
-    );
-
+      body: file
+    }
+  );
 
   if (!response.ok) {
-
     let details = "";
 
     try {
-
       details =
         await response.text();
-
     } catch {
-
       details = "";
     }
-
 
     throw new Error(
       details
@@ -1064,17 +911,14 @@ async function uploadFileDirectly(
 
 
 // ======================================================
-// SUBIR ARCHIVO
+// SUBIR FUENTE
 // ======================================================
 
 async function uploadSource() {
-
   const file =
     sourceFile.files[0];
 
-
   if (!file) {
-
     showStatus(
       "Selecciona primero un archivo."
     );
@@ -1082,13 +926,11 @@ async function uploadSource() {
     return;
   }
 
-
   const extension =
     file.name
       .split(".")
       .pop()
       .toLowerCase();
-
 
   const allowedExtensions = [
     "txt",
@@ -1096,14 +938,10 @@ async function uploadSource() {
     "docx"
   ];
 
-
   const isImage =
     String(
       file.type || ""
-    ).startsWith(
-      "image/"
-    );
-
+    ).startsWith("image/");
 
   if (
     !allowedExtensions.includes(
@@ -1111,7 +949,6 @@ async function uploadSource() {
     ) &&
     !isImage
   ) {
-
     showStatus(
       "Formato no permitido. Utiliza TXT, PDF, DOCX o una imagen."
     );
@@ -1119,34 +956,20 @@ async function uploadSource() {
     return;
   }
 
-
   try {
-
     uploadSourceButton.disabled =
       true;
 
-
-    // ==================================================
     // TXT
-    // ==================================================
-
-    if (
-      extension === "txt"
-    ) {
-
+    if (extension === "txt") {
       showStatus(
         "Leyendo el archivo..."
       );
 
-
       const content =
         await file.text();
 
-
-      if (
-        !content.trim()
-      ) {
-
+      if (!content.trim()) {
         showStatus(
           "El archivo está vacío."
         );
@@ -1154,11 +977,9 @@ async function uploadSource() {
         return;
       }
 
-
       showStatus(
         "Guardando la fuente..."
       );
-
 
       const response =
         await fetch(
@@ -1172,103 +993,73 @@ async function uploadSource() {
             },
 
             body: JSON.stringify({
-              name:
-                file.name,
-
+              name: file.name,
               content,
-
-              type:
-                "text/plain"
+              type: "text/plain"
             })
           }
         );
 
-
       let result;
 
       try {
-
         result =
           await response.json();
-
       } catch {
-
         throw new Error(
           "El servidor no devolvió una respuesta válida."
         );
       }
 
-
       if (!response.ok) {
-
         throw new Error(
           result.error ||
           "No se pudo guardar la fuente."
         );
       }
 
-
       showStatus(
         "Fuente guardada correctamente."
       );
 
     } else {
-
-      // ==================================================
       // PDF / DOCX / IMAGEN
-      // SUBIDA DIRECTA A VERCEL BLOB
-      // ==================================================
 
       showStatus(
         "Preparando la subida..."
       );
 
-
       const uploadInfo =
-        await getUploadUrl(
-          file
-        );
-
+        await getUploadUrl(file);
 
       showStatus(
         "Subiendo el archivo directamente a Vercel Blob..."
       );
-
 
       await uploadFileDirectly(
         file,
         uploadInfo.uploadUrl
       );
 
-
       showStatus(
         "Archivo subido correctamente. Actualizando fuentes..."
       );
     }
 
-
-    sourceFile.value =
-      "";
-
+    sourceFile.value = "";
 
     await loadSources();
 
-
     setTimeout(
-      () => {
-        hideStatus();
-      },
+      hideStatus,
       1500
     );
 
-
   } catch (error) {
-
     console.error(
       "Error subiendo fuente:",
       error
     );
-
 
     showStatus(
       error.message ||
@@ -1276,7 +1067,6 @@ async function uploadSource() {
     );
 
   } finally {
-
     uploadSourceButton.disabled =
       false;
   }
@@ -1288,13 +1078,10 @@ async function uploadSource() {
 // ======================================================
 
 async function addUrlSource() {
-
   const url =
     sourceUrl.value.trim();
 
-
   if (!url) {
-
     showStatus(
       "Escribe una URL."
     );
@@ -1302,17 +1089,13 @@ async function addUrlSource() {
     return;
   }
 
-
   try {
-
     addUrlSourceButton.disabled =
       true;
-
 
     showStatus(
       "Guardando la página..."
     );
-
 
     const response =
       await fetch(
@@ -1326,69 +1109,47 @@ async function addUrlSource() {
           },
 
           body: JSON.stringify({
-            name:
-              url,
-
+            name: url,
             content:
               `Fuente web: ${url}`,
-
-            type:
-              "url"
+            type: "url"
           })
         }
       );
 
-
     let result;
 
     try {
-
       result =
         await response.json();
-
     } catch {
-
       throw new Error(
         "El servidor no devolvió una respuesta válida."
       );
     }
 
-
     if (!response.ok) {
-
       throw new Error(
         result.error ||
         "No se pudo guardar la URL."
       );
     }
 
-
-    sourceUrl.value =
-      "";
-
+    sourceUrl.value = "";
 
     showStatus(
       "URL guardada correctamente."
     );
 
-
     await loadSources();
 
-
     setTimeout(
-      () => {
-        hideStatus();
-      },
+      hideStatus,
       1500
     );
 
-
   } catch (error) {
-
-    console.error(
-      error
-    );
-
+    console.error(error);
 
     showStatus(
       error.message ||
@@ -1396,7 +1157,6 @@ async function addUrlSource() {
     );
 
   } finally {
-
     addUrlSourceButton.disabled =
       false;
   }
@@ -1407,27 +1167,20 @@ async function addUrlSource() {
 // ELIMINAR FUENTE
 // ======================================================
 
-async function deleteSource(
-  pathname
-) {
-
+async function deleteSource(pathname) {
   const confirmed =
     confirm(
       "¿Seguro que quieres eliminar esta fuente?"
     );
 
-
   if (!confirmed) {
     return;
   }
 
-
   try {
-
     showStatus(
       "Eliminando fuente..."
     );
-
 
     const response =
       await fetch(
@@ -1446,53 +1199,37 @@ async function deleteSource(
         }
       );
 
-
     let result;
 
     try {
-
       result =
         await response.json();
-
     } catch {
-
       throw new Error(
         "El servidor no devolvió una respuesta válida."
       );
     }
 
-
     if (!response.ok) {
-
       throw new Error(
         result.error ||
         "No se pudo eliminar la fuente."
       );
     }
 
-
     showStatus(
       "Fuente eliminada correctamente."
     );
 
-
     await loadSources();
 
-
     setTimeout(
-      () => {
-        hideStatus();
-      },
+      hideStatus,
       1500
     );
 
-
   } catch (error) {
-
-    console.error(
-      error
-    );
-
+    console.error(error);
 
     showStatus(
       error.message ||
@@ -1503,75 +1240,51 @@ async function deleteSource(
 
 
 // ======================================================
-// EVENTOS DEL ADMINISTRADOR
+// EVENTOS
 // ======================================================
 
-if (
-  manageSourcesButton
-) {
-
+if (manageSourcesButton) {
   manageSourcesButton.addEventListener(
     "click",
     openSourcesModal
   );
 }
 
-
-if (
-  closeSourcesButton
-) {
-
+if (closeSourcesButton) {
   closeSourcesButton.addEventListener(
     "click",
     closeSourcesModal
   );
 }
 
-
-if (
-  modalOverlay
-) {
-
+if (modalOverlay) {
   modalOverlay.addEventListener(
     "click",
     closeSourcesModal
   );
 }
 
-
 sourceOptions.forEach(
-  (button) => {
-
+  button => {
     button.addEventListener(
       "click",
       () => {
-
         selectSourceType(
           button.dataset.sourceType
         );
-
       }
     );
-
   }
 );
 
-
-if (
-  uploadSourceButton
-) {
-
+if (uploadSourceButton) {
   uploadSourceButton.addEventListener(
     "click",
     uploadSource
   );
 }
 
-
-if (
-  addUrlSourceButton
-) {
-
+if (addUrlSourceButton) {
   addUrlSourceButton.addEventListener(
     "click",
     addUrlSource
@@ -1580,23 +1293,20 @@ if (
 
 
 // ======================================================
-// TECLA ESC PARA CERRAR
+// ESC
 // ======================================================
 
 document.addEventListener(
   "keydown",
-  (event) => {
-
+  event => {
     if (
       event.key === "Escape" &&
       !sourcesModal.classList.contains(
         "hidden"
       )
     ) {
-
       closeSourcesModal();
     }
-
   }
 );
 
@@ -1607,23 +1317,15 @@ document.addEventListener(
 
 form.addEventListener(
   "submit",
-  async (event) => {
-
+  async event => {
     event.preventDefault();
-
 
     const question =
       input.value;
 
+    input.value = "";
 
-    input.value =
-      "";
-
-
-    await ask(
-      question
-    );
-
+    await ask(question);
 
     input.focus();
   }
@@ -1635,19 +1337,15 @@ document
     "[data-question]"
   )
   .forEach(
-    (button) => {
-
+    button => {
       button.addEventListener(
         "click",
         () => {
-
           ask(
             button.dataset.question
           );
-
         }
       );
-
     }
   );
 
@@ -1661,21 +1359,15 @@ const clearChatButton =
     "#clear-chat"
   );
 
-
 if (clearChatButton) {
-
   clearChatButton.addEventListener(
     "click",
     () => {
-
       localStorage.removeItem(
         storageKey
       );
 
-
-      messages.innerHTML =
-        "";
-
+      messages.innerHTML = "";
 
       restoreHistory();
     }
@@ -1688,5 +1380,4 @@ if (clearChatButton) {
 // ======================================================
 
 restoreHistory();
-
 loadSources();
